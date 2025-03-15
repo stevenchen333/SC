@@ -38,16 +38,41 @@ the accept-reject sampling method and calculates both the \strong{theoretical}
 and \strong{empirical efficiency}.
 }
 \examples{
-proposal_pdf <- function(x) { ifelse(x >= -3 & x <= 3, 1/6, 0) }  # Uniform(-3,3) PDF
-target_pdf <- function(x) { dnorm(x, mean = 0, sd = 1) }  # Standard normal PDF
-M <- max(dnorm(seq(-3,3,length.out=100)) / proposal_pdf(seq(-3,3,length.out=100)))
+# Define the proposal PDF (Uniform(-3, 3) PDF)
+proposal_pdf <- function(x) { ifelse(x >= -3 & x <= 3, 1/6, 0) }
+
+# Define the target PDF (Standard Normal PDF)
+target_pdf <- function(x) { dnorm(x, mean = 0, sd = 1) }
+
+# Compute constant M
+M <- max(dnorm(seq(-3, 3, length.out = 100)) / proposal_pdf(seq(-3, 3, length.out = 100)))
+
+# Generate 1000 samples using Accept-Reject Sampling
 samples <- accept_reject_sampling(proposal_pdf, target_pdf, function(n) runif(n, -3, 3), M, 1000)
+
+# Plot the comparison between target PDF and sampled PDF
 plot_sampling(samples, target_pdf)
-proposal_pdf <- function(x) { ifelse(x >= -3 & x <= 3, 1/6, 0) }  # Uniform(-3,3) PDF
-target_pdf <- function(x) { dnorm(x, mean = 0, sd = 1) }  # Standard normal PDF
-M <- max(dnorm(seq(-3,3,length.out=100)) / proposal_pdf(seq(-3,3,length.out=100)))
-result <- accept_reject_sampling(proposal_pdf, target_pdf, function(n) runif(n, -3, 3), M, 1000)
+
+# Define the proposal PDF (Uniform(-3, 3) PDF)
+proposal_pdf <- function(x) { ifelse(x >= -3 & x <= 3, 1/6, 0) }
+
+# Define the target PDF (Standard Normal PDF)
+target_pdf <- function(x) { dnorm(x, mean = 0, sd = 1) }
+
+# Compute constant M
+M <- max(dnorm(seq(-3, 3, length.out = 100)) / proposal_pdf(seq(-3, 3, length.out = 100)))
+
+# Perform Accept-Reject Sampling with efficiency calculation
+result <- accept_reject_sampling(proposal_pdf, target_pdf,
+                                 function(n) runif(n, -3, 3), M, 1000)
+
+# Plot the comparison between target PDF and sampled PDF
 plot_sampling(result$samples, target_pdf)
+
+# Print the theoretical efficiency (acceptance probability)
 result$theoretical_efficiency
+
+# Print the empirical efficiency (based on actual samples)
 result$empirical_efficiency
+
 }

@@ -31,7 +31,13 @@ This function plots a 3D contour plot to compare the target PDF and sampled valu
 in a 2D space (for methods like Gibbs or Metropolis with 2D sampling).
 }
 \examples{
+# Define target 2D PDF (Standard Normal Distribution in both X and Y)
 target_pdf_2d <- function(x, y) { dnorm(x, mean = 0, sd = 1) * dnorm(y, mean = 0, sd = 1) }
+
+# Generate 2D samples (e.g., from a Normal distribution)
 samples_2d <- matrix(c(rnorm(1000), rnorm(1000)), ncol = 2)
+
+# Plot the 3D contour plot comparing the target PDF and sampled points
 plot_2d_sampling(samples_2d, target_pdf_2d)
+
 }

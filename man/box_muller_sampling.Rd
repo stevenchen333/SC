@@ -17,6 +17,10 @@ This function generates random samples from a standard normal distribution
 using the Box-Muller transform.
 }
 \examples{
+# Generate 1000 samples using the Box-Muller transform
 samples <- box_muller_sampling(1000)
+
+# Plot the comparison between the normal PDF and sampled values
 plot_sampling(samples, function(x) dnorm(x))  # Compare with normal PDF
+
 }

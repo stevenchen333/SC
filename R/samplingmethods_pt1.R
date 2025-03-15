@@ -9,13 +9,19 @@
 #' @param to The upper bound of the x-axis (optional).
 #' @param main The main title of the plot.
 #' @examples
-#' target_pdf <- function(x) { dnorm(x, mean = 0, sd = 1) }  # Standard normal
-#' samples <- inverse_cdf_sampling(1000, function(u) -log(1 - u))  # Inverse CDF for Exp(1)
+#' # Define target PDF (Standard Normal Distribution)
+#' target_pdf <- function(x) { dnorm(x, mean = 0, sd = 1) }
+#'
+#' # Generate samples using Inverse CDF Sampling (Exponential Distribution)
+#' samples <- inverse_cdf_sampling(1000, function(u) -log(1 - u))
+#'
+#' # Plot the comparison between target PDF and sampled PDF
 #' plot_sampling(samples, target_pdf)
+#'
 #' @export
 plot_sampling <- function(samples, target_pdf, from = -4, to = 4, main = "Sampling vs Theoretical PDF") {
   # Plot the target PDF (theoretical distribution)
-  curve(target_pdf(x), from = from, to = to, col = "blue", lwd = 2, main = main)
+  curve(target_pdf(x), from = from, to = to, col = "blue", lwd = 2, main = main, ylim = c(0, 1))
 
   # Plot the histogram of the sampled values
   hist(samples, probability = TRUE, breaks = 30, col = "lightblue", add = TRUE, density = 30, border = NA)
@@ -23,6 +29,7 @@ plot_sampling <- function(samples, target_pdf, from = -4, to = 4, main = "Sampli
   # Add a legend
   legend("topright", legend = c("Target PDF", "Sampled PDF"), col = c("blue", "lightblue"), lwd = 2)
 }
+
 #------------------------------------
 
 #' Plot 3D Contour Plot for 2D Samples
@@ -37,9 +44,15 @@ plot_sampling <- function(samples, target_pdf, from = -4, to = 4, main = "Sampli
 #' @param n_contour The number of contour levels.
 #' @param main The title of the plot.
 #' @examples
+#' # Define target 2D PDF (Standard Normal Distribution in both X and Y)
 #' target_pdf_2d <- function(x, y) { dnorm(x, mean = 0, sd = 1) * dnorm(y, mean = 0, sd = 1) }
+#'
+#' # Generate 2D samples (e.g., from a Normal distribution)
 #' samples_2d <- matrix(c(rnorm(1000), rnorm(1000)), ncol = 2)
+#'
+#' # Plot the 3D contour plot comparing the target PDF and sampled points
 #' plot_2d_sampling(samples_2d, target_pdf_2d)
+#'
 #' @export
 plot_2d_sampling <- function(samples, target_pdf, from = -4, to = 4, n_contour = 30, main = "2D Sampling vs Theoretical PDF") {
   # Create a grid for plotting
@@ -58,6 +71,7 @@ plot_2d_sampling <- function(samples, target_pdf, from = -4, to = 4, n_contour =
   # Add points for sampled data (empirical distribution)
   points(samples[, 1], samples[, 2], col = rgb(1, 0, 0, alpha = 0.5), pch = 16)
 }
+
 #------------------------------------
 
 #' Inverse CDF Sampling
@@ -69,14 +83,21 @@ plot_2d_sampling <- function(samples, target_pdf, from = -4, to = 4, n_contour =
 #' @param inv_cdf A function representing the inverse CDF of the target distribution.
 #' @return A numeric vector of sampled values.
 #' @examples
-#' inv_cdf_exp <- function(u) { -log(1 - u) }  # Exponential(1) inverse CDF
+#' # Define the inverse CDF for an Exponential Distribution
+#' inv_cdf_exp <- function(u) { -log(1 - u) }
+#'
+#' # Generate 1000 samples using Inverse CDF Sampling
 #' samples <- inverse_cdf_sampling(1000, inv_cdf_exp)
+#'
+#' # Plot the comparison between the exponential PDF and sampled values
 #' plot_sampling(samples, function(x) dexp(x))  # Compare with exponential PDF
+#'
 #' @export
 inverse_cdf_sampling <- function(n, inv_cdf) {
   u <- runif(n)  # Generate uniform samples in (0,1)
   inv_cdf(u)     # Apply inverse CDF to transform uniform samples
 }
+
 #------------------------------------
 
 #' Box-Muller Normal Sampling
@@ -87,8 +108,12 @@ inverse_cdf_sampling <- function(n, inv_cdf) {
 #' @param n The number of samples to generate (must be even for full pairs).
 #' @return A numeric vector of sampled values from N(0,1).
 #' @examples
+#' # Generate 1000 samples using the Box-Muller transform
 #' samples <- box_muller_sampling(1000)
+#'
+#' # Plot the comparison between the normal PDF and sampled values
 #' plot_sampling(samples, function(x) dnorm(x))  # Compare with normal PDF
+#'
 #' @export
 box_muller_sampling <- function(n) {
   if (n %% 2 == 1) stop("n must be even for full pairs.")
@@ -104,6 +129,7 @@ box_muller_sampling <- function(n) {
 
   c(z1, z2)  # Return the combined vector of normal samples
 }
+
 #------------------------------------
 
 #' Accept-Reject Sampling
@@ -118,11 +144,21 @@ box_muller_sampling <- function(n) {
 #' @param n The number of samples to generate.
 #' @return A numeric vector of accepted samples.
 #' @examples
-#' proposal_pdf <- function(x) { ifelse(x >= -3 & x <= 3, 1/6, 0) }  # Uniform(-3,3) PDF
-#' target_pdf <- function(x) { dnorm(x, mean = 0, sd = 1) }  # Standard normal PDF
-#' M <- max(dnorm(seq(-3,3,length.out=100)) / proposal_pdf(seq(-3,3,length.out=100)))
+#' # Define the proposal PDF (Uniform(-3, 3) PDF)
+#' proposal_pdf <- function(x) { ifelse(x >= -3 & x <= 3, 1/6, 0) }
+#'
+#' # Define the target PDF (Standard Normal PDF)
+#' target_pdf <- function(x) { dnorm(x, mean = 0, sd = 1) }
+#'
+#' # Compute constant M
+#' M <- max(dnorm(seq(-3, 3, length.out = 100)) / proposal_pdf(seq(-3, 3, length.out = 100)))
+#'
+#' # Generate 1000 samples using Accept-Reject Sampling
 #' samples <- accept_reject_sampling(proposal_pdf, target_pdf, function(n) runif(n, -3, 3), M, 1000)
+#'
+#' # Plot the comparison between target PDF and sampled PDF
 #' plot_sampling(samples, target_pdf)
+#'
 #' @export
 accept_reject_sampling <- function(proposal_pdf, target_pdf, proposal_sample, M, n) {
   samples <- numeric(n)
@@ -159,13 +195,28 @@ accept_reject_sampling <- function(proposal_pdf, target_pdf, proposal_sample, M,
 #'   - `theoretical_efficiency`: Theoretical efficiency (acceptance probability).
 #'   - `empirical_efficiency`: Empirical efficiency (based on actual samples).
 #' @examples
-#' proposal_pdf <- function(x) { ifelse(x >= -3 & x <= 3, 1/6, 0) }  # Uniform(-3,3) PDF
-#' target_pdf <- function(x) { dnorm(x, mean = 0, sd = 1) }  # Standard normal PDF
-#' M <- max(dnorm(seq(-3,3,length.out=100)) / proposal_pdf(seq(-3,3,length.out=100)))
-#' result <- accept_reject_sampling(proposal_pdf, target_pdf, function(n) runif(n, -3, 3), M, 1000)
+#' # Define the proposal PDF (Uniform(-3, 3) PDF)
+#' proposal_pdf <- function(x) { ifelse(x >= -3 & x <= 3, 1/6, 0) }
+#'
+#' # Define the target PDF (Standard Normal PDF)
+#' target_pdf <- function(x) { dnorm(x, mean = 0, sd = 1) }
+#'
+#' # Compute constant M
+#' M <- max(dnorm(seq(-3, 3, length.out = 100)) / proposal_pdf(seq(-3, 3, length.out = 100)))
+#'
+#' # Perform Accept-Reject Sampling with efficiency calculation
+#' result <- accept_reject_sampling(proposal_pdf, target_pdf,
+#'                                  function(n) runif(n, -3, 3), M, 1000)
+#'
+#' # Plot the comparison between target PDF and sampled PDF
 #' plot_sampling(result$samples, target_pdf)
+#'
+#' # Print the theoretical efficiency (acceptance probability)
 #' result$theoretical_efficiency
+#'
+#' # Print the empirical efficiency (based on actual samples)
 #' result$empirical_efficiency
+#'
 #' @export
 accept_reject_sampling <- function(proposal_pdf, target_pdf, proposal_sample, M, n) {
   samples <- numeric(n)

@@ -28,7 +28,13 @@ This function plots the comparison between the theoretical target PDF
 and the empirical distribution of the samples generated using different sampling methods.
 }
 \examples{
-target_pdf <- function(x) { dnorm(x, mean = 0, sd = 1) }  # Standard normal
-samples <- inverse_cdf_sampling(1000, function(u) -log(1 - u))  # Inverse CDF for Exp(1)
+# Define target PDF (Standard Normal Distribution)
+target_pdf <- function(x) { dnorm(x, mean = 0, sd = 1) }
+
+# Generate samples using Inverse CDF Sampling (Exponential Distribution)
+samples <- inverse_cdf_sampling(1000, function(u) -log(1 - u))
+
+# Plot the comparison between target PDF and sampled PDF
 plot_sampling(samples, target_pdf)
+
 }

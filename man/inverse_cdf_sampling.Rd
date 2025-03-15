@@ -19,7 +19,13 @@ This function generates random samples from a given continuous probability distr
 using the inverse cumulative distribution function (CDF) method.
 }
 \examples{
-inv_cdf_exp <- function(u) { -log(1 - u) }  # Exponential(1) inverse CDF
+# Define the inverse CDF for an Exponential Distribution
+inv_cdf_exp <- function(u) { -log(1 - u) }
+
+# Generate 1000 samples using Inverse CDF Sampling
 samples <- inverse_cdf_sampling(1000, inv_cdf_exp)
+
+# Plot the comparison between the exponential PDF and sampled values
 plot_sampling(samples, function(x) dexp(x))  # Compare with exponential PDF
+
 }
