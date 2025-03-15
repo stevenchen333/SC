@@ -2,7 +2,7 @@ Package: SC
 Title: Statistical Computing
 Version: 0.0.0.9000
 Authors@R: 
-    person("Tan", "Chin Hong", "email = tan.family0312@gmail.com", role = c("aut", "cre"))
+    person("Tan", given = "Chin Hong", email = "tan.family0312@gmail.com", role = c("aut", "cre"))
 Description: Provides a comprehensive suite of tools for Monte Carlo methods, Markov Chain Monte Carlo (MCMC) sampling, and Bayesian inference. Implements various sampling techniques such as Gibbs Sampling,  the Metropolis algorithm, and the Metropolis-Hastings algorithm. Supports random number generation, expectation computation, and  resampling methods. Also includes optimization methods such as Expectation-Maximization (EM) and applications of Gaussian  Processes for probabilistic modeling.
 Imports: 
         distr,
@@ -10,6 +10,7 @@ Imports:
         Matrix,
         mvtnorm
 Suggests: ggplot2, dplyr
+License: MIT
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2
