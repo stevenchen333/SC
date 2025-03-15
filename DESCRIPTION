@@ -8,8 +8,9 @@ Imports:
         distr,
         stats,
         Matrix,
-        mvtnorm
-Suggests: ggplot2, dplyr
+        mvtnorm,
+        ggplot2
+Suggests: dplyr
 License: MIT
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)

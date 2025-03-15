@@ -32,45 +32,75 @@ plot_sampling <- function(samples, target_pdf, from = -4, to = 4, main = "Sampli
 
 #------------------------------------
 
-#' Plot 3D Contour Plot for 2D Samples
+#' Plot Contour Plot for 2D Samples
 #'
-#' This function plots a 3D contour plot to compare the target PDF and sampled values
-#' in a 2D space (for methods like Gibbs or Metropolis with 2D sampling).
+#' This function plots a contour plot of the target PDF and overlays the sampled points
+#' in a 2D space, comparing the theoretical PDF and the sample distribution.
 #'
-#' @param samples A numeric matrix or data frame with 2 columns representing the 2D sampled points.
+#' @param samples A data frame or matrix with 2 columns representing the 2D sampled points.
 #' @param target_pdf A function representing the target 2D probability distribution (used for comparison).
 #' @param from The lower bound for the x-axis (optional).
 #' @param to The upper bound for the x-axis (optional).
 #' @param n_contour The number of contour levels.
 #' @param main The title of the plot.
 #' @examples
-#' # Define target 2D PDF (Standard Normal Distribution in both X and Y)
-#' target_pdf_2d <- function(x, y) { dnorm(x, mean = 0, sd = 1) * dnorm(y, mean = 0, sd = 1) }
+#' # Custom 2D density function
+#' density <- function(x, y) {
+#'   return(2 * (1 - x) * (1 - y) * (1 - x * y)^(-3))
+#' }
 #'
-#' # Generate 2D samples (e.g., from a Normal distribution)
-#' samples_2d <- matrix(c(rnorm(1000), rnorm(1000)), ncol = 2)
+#' # Generate 2D samples using the provided sampling method
+#' generate_samples <- function(n) {
+#'   x_samples <- numeric(n)
+#'   y_samples <- numeric(n)
+#'   for (i in 1:n) {
+#'     y_samples[i] <- runif(1)
+#'     u <- runif(1)
+#'     x_samples[i] <- (sqrt(u) - 1) / (y_samples[i] * sqrt(u) - 1)
+#'   }
+#'   return(data.frame(x = x_samples, y = y_samples))
+#' }
 #'
-#' # Plot the 3D contour plot comparing the target PDF and sampled points
-#' plot_2d_sampling(samples_2d, target_pdf_2d)
+#' # Generate 1000 samples
+#' samples_2d <- generate_samples(1000)
+#'
+#' # Plot the contour plot comparing the target PDF and sampled points
+#' plot_2d_sampling(samples_2d, density)
 #'
 #' @export
-plot_2d_sampling <- function(samples, target_pdf, from = -4, to = 4, n_contour = 30, main = "2D Sampling vs Theoretical PDF") {
-  # Create a grid for plotting
+plot_2d_sampling <- function(samples, target_pdf, from = 0, to = 0.99, n_contour = 30, main = "2D Sampling vs Theoretical PDF") {
+  # Create a fine grid for plotting
   grid_size <- 100
-  x_vals <- seq(from, to, length.out = grid_size)
-  y_vals <- seq(from, to, length.out = grid_size)
-  grid <- expand.grid(x = x_vals, y = y_vals)
+  x_vals_fine <- seq(from, to, length.out = grid_size)
+  y_vals_fine <- seq(from, to, length.out = grid_size)
 
   # Compute the target PDF on the grid
-  z_vals <- matrix(mapply(target_pdf, grid$x, grid$y), ncol = grid_size)
+  z_matrix_fine <- matrix(0, length(x_vals_fine), length(y_vals_fine))
+  for (i in 1:length(x_vals_fine)) {
+    for (j in 1:length(y_vals_fine)) {
+      z_matrix_fine[i, j] <- target_pdf(x_vals_fine[i], y_vals_fine[j])
+    }
+  }
 
-  # Create 3D contour plot
-  persp(x_vals, y_vals, z_vals, theta = 30, phi = 30, col = "lightblue", border = "white",
-        xlab = "X", ylab = "Y", zlab = "Density", main = main, shade = 0.5)
+  # Cap the values for better visualization
+  z_matrix_capped <- pmin(z_matrix_fine, 5)
 
-  # Add points for sampled data (empirical distribution)
-  points(samples[, 1], samples[, 2], col = rgb(1, 0, 0, alpha = 0.5), pch = 16)
+  # Prepare the data for plotting
+  df <- expand.grid(x = x_vals_fine, y = y_vals_fine)
+  df$z <- c(z_matrix_capped)
+
+  # Plot using ggplot2
+  ggplot(df, aes(x = x, y = y)) +
+    geom_point(aes(size = z, color = z), alpha = 0.9) +
+    scale_color_gradientn(colors = c("darkgreen", "olivedrab", "yellow", "orange", "red3")) +
+    scale_size(range = c(0.5, 6)) +
+    coord_cartesian(xlim = c(from, to), ylim = c(from, to)) +
+    theme(legend.position = "none") +
+    geom_contour(aes(x = x, y = y, z = z), color = "darkslategray", size = 0.5) +
+    geom_point(data = samples, aes(x = x, y = y), alpha = 0.7, pch = 16) +
+    ggtitle(main)
 }
+
 
 #------------------------------------
 

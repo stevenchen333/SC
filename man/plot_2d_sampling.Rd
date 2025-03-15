@@ -2,19 +2,19 @@
 % Please edit documentation in R/samplingmethods_pt1.R
 \name{plot_2d_sampling}
 \alias{plot_2d_sampling}
-\title{Plot 3D Contour Plot for 2D Samples}
+\title{Plot Contour Plot for 2D Samples}
 \usage{
 plot_2d_sampling(
   samples,
   target_pdf,
-  from = -4,
-  to = 4,
+  from = 0,
+  to = 0.99,
   n_contour = 30,
   main = "2D Sampling vs Theoretical PDF"
 )
 }
 \arguments{
-\item{samples}{A numeric matrix or data frame with 2 columns representing the 2D sampled points.}
+\item{samples}{A data frame or matrix with 2 columns representing the 2D sampled points.}
 
 \item{target_pdf}{A function representing the target 2D probability distribution (used for comparison).}
 
@@ -27,17 +27,31 @@ plot_2d_sampling(
 \item{main}{The title of the plot.}
 }
 \description{
-This function plots a 3D contour plot to compare the target PDF and sampled values
-in a 2D space (for methods like Gibbs or Metropolis with 2D sampling).
+This function plots a contour plot of the target PDF and overlays the sampled points
+in a 2D space, comparing the theoretical PDF and the sample distribution.
 }
 \examples{
-# Define target 2D PDF (Standard Normal Distribution in both X and Y)
-target_pdf_2d <- function(x, y) { dnorm(x, mean = 0, sd = 1) * dnorm(y, mean = 0, sd = 1) }
+# Custom 2D density function
+density <- function(x, y) {
+  return(2 * (1 - x) * (1 - y) * (1 - x * y)^(-3))
+}
 
-# Generate 2D samples (e.g., from a Normal distribution)
-samples_2d <- matrix(c(rnorm(1000), rnorm(1000)), ncol = 2)
+# Generate 2D samples using the provided sampling method
+generate_samples <- function(n) {
+  x_samples <- numeric(n)
+  y_samples <- numeric(n)
+  for (i in 1:n) {
+    y_samples[i] <- runif(1)
+    u <- runif(1)
+    x_samples[i] <- (sqrt(u) - 1) / (y_samples[i] * sqrt(u) - 1)
+  }
+  return(data.frame(x = x_samples, y = y_samples))
+}
 
-# Plot the 3D contour plot comparing the target PDF and sampled points
-plot_2d_sampling(samples_2d, target_pdf_2d)
+# Generate 1000 samples
+samples_2d <- generate_samples(1000)
+
+# Plot the contour plot comparing the target PDF and sampled points
+plot_2d_sampling(samples_2d, density)
 
 }
