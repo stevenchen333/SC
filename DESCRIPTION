@@ -2,16 +2,8 @@ Package: SC
 Title: Statistical Computing
 Version: 0.0.0.9000
 Authors@R: 
-    person("Tan Chin Hong", , "tan.family0312@gmail.com", role = c("aut", "cre"))
-Description: Provides a comprehensive suite of tools for Monte Carlo methods, 
-  Markov Chain Monte Carlo (MCMC) sampling, and Bayesian inference. 
-  Implements various sampling techniques such as Gibbs Sampling, 
-  the Metropolis algorithm, and the Metropolis-Hastings algorithm. 
-  Supports random number generation, expectation computation, and 
-  resampling methods. Also includes optimization methods such as 
-  Expectation-Maximization (EM) and applications of Gaussian 
-  Processes for probabilistic modeling.
-License: `use_mit_license()`, `use_gpl3_license()` 
+    person("Tan", "Chin Hong", "email = tan.family0312@gmail.com", role = c("aut", "cre"))
+Description: Provides a comprehensive suite of tools for Monte Carlo methods, Markov Chain Monte Carlo (MCMC) sampling, and Bayesian inference. Implements various sampling techniques such as Gibbs Sampling,  the Metropolis algorithm, and the Metropolis-Hastings algorithm. Supports random number generation, expectation computation, and  resampling methods. Also includes optimization methods such as Expectation-Maximization (EM) and applications of Gaussian  Processes for probabilistic modeling.
 Imports: 
         distr,
         stats,
