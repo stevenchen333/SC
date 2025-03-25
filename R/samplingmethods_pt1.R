@@ -211,7 +211,7 @@ accept_reject <- function(proposal, target, M = NULL, n=100000) {
   }
 
   if (is.null(M) == TRUE){
-    M = optimise(ratio_function, lower = 0, upper =1, maximum = TRUE, tol = 0.00001)$maximum
+    M = optimise(ratio_function, lower = 0, upper =1, maximum = TRUE, tol = 0.00001)$objective
   }
 
   while (count < n) {
