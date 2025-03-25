@@ -202,17 +202,22 @@ box_muller <- function(n = 100000) {
 #' result$empirical_efficiency
 #'
 #' @export
-accept_reject <- function(proposal, target, M, n=100000) {
+accept_reject <- function(proposal, target, M = NULL, n=100000) {
   samples <- numeric(n)
   count <- 0  # Counter for accepted samples
   total_proposed <- 0  # Counter for proposed samples
+  ratio_function = target/proposal
+
+  if (is.null(M) == TRUE){
+    M = optimise(ratio_function, c(0,1), maximum = TRUE, tol = 0.00001)
+  }
 
   while (count < n) {
     x <- proposal(1)  # Draw a sample from the proposal distribution
     u <- runif(1)  # Uniform(0,1) sample
     total_proposed <- total_proposed + 1
 
-    if (u <= target(x) / (M * proposal(x))) {
+    if (u <= ratio_function*(1/M)) {
       count <- count + 1
       samples[count] <- x
     }
