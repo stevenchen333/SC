@@ -7,9 +7,6 @@ Provides a comprehensive suite of tools for Monte Carlo methods, Markov Chain Mo
 To use, follow the following instruction:
 
 install.packages("devtools")
+
 devtools::install_github(stevenchen333/SC)
 
-
-DO NOT use require() or library() to call for my package it will break (currently a bug wll be fixed soon)
-
-use SC::<the function that you want> (e.g. SC:: inverse_cdf_sampling())
