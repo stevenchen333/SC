@@ -288,3 +288,87 @@ metropolis <- function(target, initial, proposal, n = 100000, hastings = FALSE){
 
 }
 
+#------------------------------------
+#' Gibbs Sampler for Multivariate Distributions with Thinning
+#'
+#' Implements a Gibbs sampling algorithm for an `n_dim`-dimensional random variable.
+#' Includes a thinning option to reduce autocorrelation, while ensuring `n` samples
+#' are retained after burn-in and thinning.
+#'
+#' @param n_dim Integer. The number of dimensions (variables) in the distribution.
+#' @param n_iter Integer. The total number of iterations to run the sampler.
+#' @param burn_in Integer. The number of initial samples to discard (burn-in period).
+#' @param thinning Integer. The thinning interval, specifying how frequently to keep a sample.
+#'   Default is 1, meaning no thinning.
+#' @param init Numeric vector of length `n_dim`. The starting values for the sampler.
+#' @param conditional_samplers List of functions. Each function corresponds to a conditional
+#'   sampler for one of the dimensions, taking the current state as input and returning a new value.
+#'
+#' @return A matrix of size `(n)` containing the sampled values after the burn-in period and thinning.
+#' @examples
+#' set.seed(123)
+#'
+#' # Define conditional samplers for a bivariate normal distribution
+#' mu1 <- 0; mu2 <- 0
+#' sigma1 <- 1; sigma2 <- 1
+#' rho <- 0.8
+#'
+#' cond_sampler_x <- function(state) {
+#'   y <- state[2]
+#'   rnorm(1, mean = mu1 + rho * (y - mu2) * sigma1 / sigma2, sd = sqrt((1 - rho^2) * sigma1^2))
+#' }
+#'
+#' cond_sampler_y <- function(state) {
+#'   x <- state[1]
+#'   rnorm(1, mean = mu2 + rho * (x - mu1) * sigma2 / sigma1, sd = sqrt((1 - rho^2) * sigma2^2))
+#' }
+#'
+#' # Run Gibbs sampler with thinning every 30 iterations and retain 500 samples
+#' samples <- gibbs_sampler(n_dim = 2, n_iter = 10000, burn_in = 1000, thinning = 30,
+#'                          init = c(0, 0), conditional_samplers = list(cond_sampler_x, cond_sampler_y))
+#'
+#' # Plot the samples
+#' plot(samples, col = rgb(0, 0, 1, 0.2), pch = 16, main = "Gibbs Sampler Samples with Thinning")
+#'
+#' @export
+gibbs_sampler <- function(n_dim, n_iter, burn_in, thinning = 1, init, conditional_samplers) {
+  if (burn_in >= n_iter) {
+    stop("Burn-in period must be smaller than the total number of iterations.")
+  }
+
+  if (thinning < 1) {
+    stop("Thinning interval must be at least 1.")
+  }
+
+  # Initialize the samples matrix
+  samples <- matrix(NA, nrow = n_iter, ncol = n_dim)
+  samples[1, ] <- init
+
+  # Perform Gibbs sampling
+  for (i in 2:n_iter) {
+    samples[i, ] <- samples[i - 1, ]
+    for (j in 1:n_dim) {
+      samples[i, j] <- conditional_samplers[[j]](samples[i, ])
+    }
+  }
+
+  # Discard burn-in samples
+  samples <- samples[(burn_in + 1):n_iter, , drop = FALSE]
+
+  # Calculate the number of samples to retain after thinning
+  n_samples_needed <- (n_iter - burn_in) / thinning
+
+  # If thinning results in fewer than desired samples, adjust the thinning interval
+  if (n_samples_needed > 0) {
+    samples <- samples[seq(1, nrow(samples), by = thinning), , drop = FALSE]
+
+    # Adjust the number of samples if thinning results in more than required
+    if (nrow(samples) > n_samples_needed) {
+      samples <- samples[1:n_samples_needed, , drop = FALSE]
+    }
+  }
+
+  return(samples)
+}
+
+
