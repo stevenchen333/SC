@@ -4,7 +4,16 @@
 \alias{gibbs_sampler}
 \title{Gibbs Sampler for Multivariate Distributions with Thinning}
 \usage{
-gibbs_sampler(n_dim, n_iter, burn_in, thinning = 1, init, conditional_samplers)
+gibbs_sampler(
+  n_dim,
+  n_iter,
+  burn_in,
+  thinning = 1,
+  init,
+  conditional_samplers,
+  proposal_functions,
+  target_functions
+)
 }
 \arguments{
 \item{n_dim}{Integer. The number of dimensions (variables) in the distribution.}

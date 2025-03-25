@@ -203,11 +203,11 @@ box_muller <- function(n = 100000) {
 #'
 #' @export
 accept_reject <- function(proposal, target, M = NULL, n = 100000, lower = NULL, upper = NULL) {
-  samples <- numeric(n)  # To store the accepted samples
+  samples <- matrix(NA, nrow = n, ncol = length(lower))  # To store the accepted samples (in matrix form for multi-dimensional)
   count <- 0  # Counter for accepted samples
   total_proposed <- 0  # Counter for proposed samples
 
-  # Ratio function to calculate the target-to-proposal ratio
+  # Ratio function to calculate the target-to-proposal ratio for vectors
   ratio_function <- function(x) {
     target(x) / proposal(x)
   }
@@ -221,14 +221,14 @@ accept_reject <- function(proposal, target, M = NULL, n = 100000, lower = NULL, 
   }
 
   while (count < n) {
-    x <- proposal(1)  # Draw a sample from the proposal distribution
+    x <- proposal(1)  # Draw a sample from the proposal distribution (this can be a vector)
     u <- runif(1)  # Uniform(0,1) sample
     total_proposed <- total_proposed + 1
 
     # Acceptance condition
     if (u <= (target(x) / (M * proposal(x)))) {
       count <- count + 1
-      samples[count] <- x
+      samples[count, ] <- x  # Store the vector sample
     }
   }
 
@@ -345,7 +345,7 @@ metropolis <- function(target, initial, proposal, n = 100000, hastings = FALSE){
 #' plot(samples, col = rgb(0, 0, 1, 0.2), pch = 16, main = "Gibbs Sampler Samples with Thinning")
 #'
 #' @export
-gibbs_sampler <- function(n_dim, n_iter, burn_in, thinning = 1, init, conditional_samplers) {
+gibbs_sampler <- function(n_dim, n_iter, burn_in, thinning = 1, init, conditional_samplers, proposal_functions, target_functions) {
   if (burn_in >= n_iter) {
     stop("Burn-in period must be smaller than the total number of iterations.")
   }
@@ -358,11 +358,23 @@ gibbs_sampler <- function(n_dim, n_iter, burn_in, thinning = 1, init, conditiona
   samples <- matrix(NA, nrow = n_iter, ncol = n_dim)
   samples[1, ] <- init
 
-  # Perform Gibbs sampling
+  # Perform Gibbs sampling with accept-reject in each conditional sampling step
   for (i in 2:n_iter) {
     current_sample <- samples[i - 1, ]
     for (j in 1:n_dim) {
-      current_sample[j] <- conditional_samplers[[j]](current_sample)
+      # Use the accept_reject function for each conditional sampler
+      proposal <- proposal_functions[[j]]  # Proposal distribution for the j-th dimension
+      target <- target_functions[[j]]  # Target function (conditional distribution for the j-th dimension)
+
+      # Use the acceptance-rejection method for the j-th dimension
+      result <- accept_reject(proposal = proposal,
+                              target = target,
+                              n = 1,  # We need only one sample at a time
+                              lower = -Inf,  # Set your lower and upper bounds based on the problem
+                              upper = Inf)
+
+      # Set the j-th dimension of the current sample
+      current_sample[j] <- result$samples[1]
     }
     samples[i, ] <- current_sample
   }
@@ -389,6 +401,7 @@ gibbs_sampler <- function(n_dim, n_iter, burn_in, thinning = 1, init, conditiona
 
   return(samples)
 }
+
 
 
 
