@@ -202,7 +202,7 @@ box_muller <- function(n = 100000) {
 #' result$empirical_efficiency
 #'
 #' @export
-accept_reject <- function(proposal, target, M = NULL, n=100000) {
+accept_reject <- function(proposal, target, M = NULL, n=100000, lower = NULL, upper = NULL) {
   samples <- numeric(n)
   count <- 0  # Counter for accepted samples
   total_proposed <- 0  # Counter for proposed samples
@@ -211,7 +211,7 @@ accept_reject <- function(proposal, target, M = NULL, n=100000) {
   }
 
   if (is.null(M) == TRUE){
-    M = optimise(ratio_function, lower = 0, upper =1, maximum = TRUE, tol = 0.00001)$objective
+    M = optimise(ratio_function, lower = lower, upper =upper, maximum = TRUE, tol = 0.00001)$objective
   }
 
   while (count < n) {

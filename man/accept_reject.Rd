@@ -4,7 +4,14 @@
 \alias{accept_reject}
 \title{Accept-Reject Sampling with Efficiency Calculation}
 \usage{
-accept_reject(proposal, target, M = NULL, n = 1e+05)
+accept_reject(
+  proposal,
+  target,
+  M = NULL,
+  n = 1e+05,
+  lower = NULL,
+  upper = NULL
+)
 }
 \arguments{
 \item{proposal}{A function representing the probability density function (PDF) of the proposal distribution.}
