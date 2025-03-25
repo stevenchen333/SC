@@ -202,16 +202,22 @@ box_muller <- function(n = 100000) {
 #' result$empirical_efficiency
 #'
 #' @export
-accept_reject <- function(proposal, target, M = NULL, n=100000, lower = NULL, upper = NULL) {
-  samples <- numeric(n)
+accept_reject <- function(proposal, target, M = NULL, n = 100000, lower = NULL, upper = NULL) {
+  samples <- numeric(n)  # To store the accepted samples
   count <- 0  # Counter for accepted samples
   total_proposed <- 0  # Counter for proposed samples
-  ratio_function <- function(x){
-    target(x)/proposal(x)
+
+  # Ratio function to calculate the target-to-proposal ratio
+  ratio_function <- function(x) {
+    target(x) / proposal(x)
   }
 
-  if (is.null(M) == TRUE){
-    M = optimise(ratio_function, lower = lower, upper =upper, maximum = TRUE, tol = 0.00001)$objective
+  # If M is not provided, optimize to find the maximum of the ratio function
+  if (is.null(M)) {
+    if (is.null(lower) | is.null(upper)) {
+      stop("You must provide bounds for optimization if M is not supplied.")
+    }
+    M <- optimise(ratio_function, lower = lower, upper = upper, maximum = TRUE, tol = 0.00001)$objective
   }
 
   while (count < n) {
@@ -219,14 +225,15 @@ accept_reject <- function(proposal, target, M = NULL, n=100000, lower = NULL, up
     u <- runif(1)  # Uniform(0,1) sample
     total_proposed <- total_proposed + 1
 
-    if (u <= ratio_function(x)*(1/M)) {
+    # Acceptance condition
+    if (u <= (target(x) / (M * proposal(x)))) {
       count <- count + 1
       samples[count] <- x
     }
   }
 
   # Theoretical efficiency: ratio of acceptance probabilities
-  theoretical_efficiency <- 1/M
+  theoretical_efficiency <- 1 / M
 
   # Empirical efficiency: ratio of accepted samples to proposed samples
   empirical_efficiency <- n / total_proposed
@@ -353,29 +360,35 @@ gibbs_sampler <- function(n_dim, n_iter, burn_in, thinning = 1, init, conditiona
 
   # Perform Gibbs sampling
   for (i in 2:n_iter) {
-    samples[i, ] <- samples[i - 1, ]
+    current_sample <- samples[i - 1, ]
     for (j in 1:n_dim) {
-      samples[i, j] <- conditional_samplers[[j]](samples[i, ])
+      current_sample[j] <- conditional_samplers[[j]](current_sample)
     }
+    samples[i, ] <- current_sample
   }
 
   # Discard burn-in samples
   samples <- samples[(burn_in + 1):n_iter, , drop = FALSE]
 
   # Calculate the number of samples to retain after thinning
-  n_samples_needed <- (n_iter - burn_in) / thinning
+  n_samples_needed <- floor((n_iter - burn_in) / thinning)
 
   # If thinning results in fewer than desired samples, adjust the thinning interval
   if (n_samples_needed > 0) {
-    samples <- samples[seq(1, nrow(samples), by = thinning), , drop = FALSE]
+    # Get the indices after thinning
+    retained_indices <- seq(1, nrow(samples), by = thinning)
 
-    # Adjust the number of samples if thinning results in more than required
-    if (nrow(samples) > n_samples_needed) {
-      samples <- samples[1:n_samples_needed, , drop = FALSE]
+    # Ensure we do not exceed the number of needed samples
+    if (length(retained_indices) > n_samples_needed) {
+      retained_indices <- retained_indices[1:n_samples_needed]
     }
+
+    # Subset the samples based on the retained indices
+    samples <- samples[retained_indices, , drop = FALSE]
   }
 
   return(samples)
 }
+
 
 
