@@ -110,22 +110,22 @@ plot_2d_sampling <- function(samples, target_pdf, from = 0, to = 0.99, n_contour
 #' using the inverse cumulative distribution function (CDF) method.
 #'
 #' @param n The number of samples to generate.
-#' @param inv_cdf A function representing the inverse CDF of the target distribution.
+#' @param inv A function representing the inverse CDF of the target distribution.
 #' @return A numeric vector of sampled values.
 #' @examples
 #' # Define the inverse CDF for an Exponential Distribution
 #' inv_cdf_exp <- function(u) { -log(1 - u) }
 #'
 #' # Generate 1000 samples using Inverse CDF Sampling
-#' samples <- inverse_cdf_sampling(1000, inv_cdf_exp)
+#' samples <- inv_cdf(inv_cdf_exp, n = 1000)
 #'
 #' # Plot the comparison between the exponential PDF and sampled values
 #' plot_sampling(samples, function(x) dexp(x))  # Compare with exponential PDF
 #'
 #' @export
-inverse_cdf_sampling <- function(n, inv_cdf) {
+inv_cdf <- function(inv, n = 100000) {
   u <- runif(n)  # Generate uniform samples in (0,1)
-  inv_cdf(u)     # Apply inverse CDF to transform uniform samples
+  inv(u)     # Apply inverse CDF to transform uniform samples
 }
 
 #------------------------------------
@@ -139,13 +139,13 @@ inverse_cdf_sampling <- function(n, inv_cdf) {
 #' @return A numeric vector of sampled values from N(0,1).
 #' @examples
 #' # Generate 1000 samples using the Box-Muller transform
-#' samples <- box_muller_sampling(1000)
+#' samples <- box_muller(1000)
 #'
 #' # Plot the comparison between the normal PDF and sampled values
 #' plot_sampling(samples, function(x) dnorm(x))  # Compare with normal PDF
 #'
 #' @export
-box_muller_sampling <- function(n) {
+box_muller <- function(n = 100000) {
   if (n %% 2 == 1) stop("n must be even for full pairs.")
 
   u1 <- runif(n / 2)
@@ -157,55 +157,10 @@ box_muller_sampling <- function(n) {
   z1 <- r * cos(theta)
   z2 <- r * sin(theta)
 
-  c(z1, z2)  # Return the combined vector of normal samples
+  return(c(z1, z2))  # Return the combined vector of normal samples
 }
 
-#------------------------------------
 
-#' Accept-Reject Sampling
-#'
-#' This function generates samples from a target distribution using
-#' the accept-reject sampling method.
-#'
-#' @param proposal_pdf A function representing the probability density function (PDF) of the proposal distribution.
-#' @param target_pdf A function representing the probability density function (PDF) of the target distribution.
-#' @param proposal_sample A function that generates random samples from the proposal distribution.
-#' @param M A constant such that target_pdf(x) <= M * proposal_pdf(x) for all x.
-#' @param n The number of samples to generate.
-#' @return A numeric vector of accepted samples.
-#' @examples
-#' # Define the proposal PDF (Uniform(-3, 3) PDF)
-#' proposal_pdf <- function(x) { ifelse(x >= -3 & x <= 3, 1/6, 0) }
-#'
-#' # Define the target PDF (Standard Normal PDF)
-#' target_pdf <- function(x) { dnorm(x, mean = 0, sd = 1) }
-#'
-#' # Compute constant M
-#' M <- max(dnorm(seq(-3, 3, length.out = 100)) / proposal_pdf(seq(-3, 3, length.out = 100)))
-#'
-#' # Generate 1000 samples using Accept-Reject Sampling
-#' samples <- accept_reject_sampling(proposal_pdf, target_pdf, function(n) runif(n, -3, 3), M, 1000)
-#'
-#' # Plot the comparison between target PDF and sampled PDF
-#' plot_sampling(samples, target_pdf)
-#'
-#' @export
-accept_reject_sampling <- function(proposal_pdf, target_pdf, proposal_sample, M, n) {
-  samples <- numeric(n)
-  count <- 0  # Counter for accepted samples
-
-  while (count < n) {
-    x <- proposal_sample(1)  # Draw a sample from the proposal distribution
-    u <- runif(1)  # Uniform(0,1) sample
-
-    if (u <= target_pdf(x) / (M * proposal_pdf(x))) {
-      count <- count + 1
-      samples[count] <- x
-    }
-  }
-
-  samples
-}
 
 #------------------------------------
 
@@ -215,9 +170,8 @@ accept_reject_sampling <- function(proposal_pdf, target_pdf, proposal_sample, M,
 #' the accept-reject sampling method and calculates both the **theoretical**
 #' and **empirical efficiency**.
 #'
-#' @param proposal_pdf A function representing the probability density function (PDF) of the proposal distribution.
-#' @param target_pdf A function representing the probability density function (PDF) of the target distribution.
-#' @param proposal_sample A function that generates random samples from the proposal distribution.
+#' @param proposal A function representing the probability density function (PDF) of the proposal distribution.
+#' @param target A function representing the probability density function (PDF) of the target distribution.
 #' @param M A constant such that target_pdf(x) <= M * proposal_pdf(x) for all x.
 #' @param n The number of samples to generate.
 #' @return A list containing:
@@ -235,8 +189,8 @@ accept_reject_sampling <- function(proposal_pdf, target_pdf, proposal_sample, M,
 #' M <- max(dnorm(seq(-3, 3, length.out = 100)) / proposal_pdf(seq(-3, 3, length.out = 100)))
 #'
 #' # Perform Accept-Reject Sampling with efficiency calculation
-#' result <- accept_reject_sampling(proposal_pdf, target_pdf,
-#'                                  function(n) runif(n, -3, 3), M, 1000)
+#' result <- accept_reject(proposal_pdf, target_pdf,
+#'                                   M, 1000)
 #'
 #' # Plot the comparison between target PDF and sampled PDF
 #' plot_sampling(result$samples, target_pdf)
@@ -248,24 +202,24 @@ accept_reject_sampling <- function(proposal_pdf, target_pdf, proposal_sample, M,
 #' result$empirical_efficiency
 #'
 #' @export
-accept_reject_sampling <- function(proposal_pdf, target_pdf, proposal_sample, M, n) {
+accept_reject <- function(proposal, target, M, n=100000) {
   samples <- numeric(n)
   count <- 0  # Counter for accepted samples
   total_proposed <- 0  # Counter for proposed samples
 
   while (count < n) {
-    x <- proposal_sample(1)  # Draw a sample from the proposal distribution
+    x <- proposal(1)  # Draw a sample from the proposal distribution
     u <- runif(1)  # Uniform(0,1) sample
     total_proposed <- total_proposed + 1
 
-    if (u <= target_pdf(x) / (M * proposal_pdf(x))) {
+    if (u <= target(x) / (M * proposal(x))) {
       count <- count + 1
       samples[count] <- x
     }
   }
 
   # Theoretical efficiency: ratio of acceptance probabilities
-  theoretical_efficiency <- mean(target_pdf(seq(-3, 3, length.out = 100)) / (M * proposal_pdf(seq(-3, 3, length.out = 100))))
+  theoretical_efficiency <- 1/M
 
   # Empirical efficiency: ratio of accepted samples to proposed samples
   empirical_efficiency <- n / total_proposed
@@ -274,3 +228,63 @@ accept_reject_sampling <- function(proposal_pdf, target_pdf, proposal_sample, M,
               theoretical_efficiency = theoretical_efficiency,
               empirical_efficiency = empirical_efficiency))
 }
+
+
+
+#------------------------------------
+#' Metropolis Algorithm (Supports Optional Metropolis-Hastings)
+#'
+#' This function implements the Metropolis algorithm for sampling from a given target distribution.
+#' Currently, Metropolis-Hastings is not implemented, but the function structure allows future extension.
+#'
+#' @param target A function representing the target distribution (unnormalized density).
+#' @param initial A function that generates the initial sample.
+#' @param proposal A function that proposes a new sample given the current sample.
+#' @param n Integer, number of iterations for the algorithm. Default is 100000.
+#' @param hastings Logical, whether to use Metropolis-Hastings. Currently, only Metropolis is implemented. Default is FALSE.
+#'
+#' @return A list containing the sampled values.
+#'
+#' @examples
+#' # Define target distribution (unnormalized density)
+#' target <- function(x) { dnorm(x, mean = 0, sd = 1) }
+#'
+#' # Define proposal function (Normal random walk)
+#' proposal <- function(x) { rnorm(1, mean = x, sd = 1) }
+#'
+#' # Define initial value function
+#' initial <- function() { 0 }
+#'
+#' # Run Metropolis algorithm
+#' samples <- metropolis(target, initial, proposal, n = 10000, hastings = FALSE)
+#'
+#' # Plot the histogram of samples
+#' hist(unlist(samples), probability = TRUE, main = "Metropolis Samples",
+#'      xlab = "x", col = "lightblue", border = "black")
+#'
+#' @export
+metropolis <- function(target, initial, proposal, n = 100000, hastings = FALSE){
+  samples <- list(initial())
+
+  for (i in 1:n) {
+    current <- samples[[length(samples)]]
+    proposed <- proposal(current)
+
+    if (hastings == FALSE){
+      if (runif(1) < target(proposed) / target(current)) {
+        samples <- append(samples, list(proposed))
+      } else {
+        samples <- append(samples, list(current))
+      }
+
+    }
+
+    if (hastings == TRUE){
+      NULL
+    }
+  }
+
+  return(samples)
+
+}
+
