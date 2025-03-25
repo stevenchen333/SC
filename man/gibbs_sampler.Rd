@@ -2,65 +2,38 @@
 % Please edit documentation in R/samplingmethods_pt1.R
 \name{gibbs_sampler}
 \alias{gibbs_sampler}
-\title{Gibbs Sampler for Multivariate Distributions with Thinning}
+\title{Flexible Gibbs Sampling with Optional Rejection Steps}
 \usage{
 gibbs_sampler(
-  n_dim,
-  n_iter,
-  burn_in,
-  thinning = 1,
-  init,
   conditional_samplers,
-  proposal_functions,
-  target_functions
+  init,
+  n_iter = 1000,
+  burn_in = 100,
+  thinning = 1
 )
 }
 \arguments{
-\item{n_dim}{Integer. The number of dimensions (variables) in the distribution.}
+\item{conditional_samplers}{List of conditional samplers (functions or specifications)}
 
-\item{n_iter}{Integer. The total number of iterations to run the sampler.}
+\item{init}{Initial parameter vector}
 
-\item{burn_in}{Integer. The number of initial samples to discard (burn-in period).}
+\item{n_iter}{Total iterations (default: 1000)}
 
-\item{thinning}{Integer. The thinning interval, specifying how frequently to keep a sample.
-Default is 1, meaning no thinning.}
+\item{burn_in}{Burn-in period (default: 100)}
 
-\item{init}{Numeric vector of length \code{n_dim}. The starting values for the sampler.}
-
-\item{conditional_samplers}{List of functions. Each function corresponds to a conditional
-sampler for one of the dimensions, taking the current state as input and returning a new value.}
+\item{thinning}{Thinning interval (default: 1)}
 }
 \value{
-A matrix of size \code{(n)} containing the sampled values after the burn-in period and thinning.
+Matrix where rows are samples and columns are parameters
 }
 \description{
-Implements a Gibbs sampling algorithm for an \code{n_dim}-dimensional random variable.
-Includes a thinning option to reduce autocorrelation, while ensuring \code{n} samples
-are retained after burn-in and thinning.
+General-purpose Gibbs sampler supporting both direct sampling and rejection sampling steps.
 }
 \examples{
-set.seed(123)
-
-# Define conditional samplers for a bivariate normal distribution
-mu1 <- 0; mu2 <- 0
-sigma1 <- 1; sigma2 <- 1
-rho <- 0.8
-
-cond_sampler_x <- function(state) {
-  y <- state[2]
-  rnorm(1, mean = mu1 + rho * (y - mu2) * sigma1 / sigma2, sd = sqrt((1 - rho^2) * sigma1^2))
-}
-
-cond_sampler_y <- function(state) {
-  x <- state[1]
-  rnorm(1, mean = mu2 + rho * (x - mu1) * sigma2 / sigma1, sd = sqrt((1 - rho^2) * sigma2^2))
-}
-
-# Run Gibbs sampler with thinning every 30 iterations and retain 500 samples
-samples <- gibbs_sampler(n_dim = 2, n_iter = 10000, burn_in = 1000, thinning = 30,
-                         init = c(0, 0), conditional_samplers = list(cond_sampler_x, cond_sampler_y))
-
-# Plot the samples
-plot(samples, col = rgb(0, 0, 1, 0.2), pch = 16, main = "Gibbs Sampler Samples with Thinning")
-
+# Bivariate normal example
+sampler <- list(
+  function(y) rnorm(1, 0.5*y, sqrt(0.75)),
+  function(x) rnorm(1, 0.5*x, sqrt(0.75))
+)
+samples <- gibbs_sampler(sampler, init = c(0,0))
 }

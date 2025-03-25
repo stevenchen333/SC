@@ -164,85 +164,141 @@ box_muller <- function(n = 100000) {
 
 #------------------------------------
 
-#' Accept-Reject Sampling with Efficiency Calculation
+#' General-Purpose Rejection Sampling
 #'
-#' This function generates samples from a target distribution using
-#' the accept-reject sampling method and calculates both the **theoretical**
-#' and **empirical efficiency**.
+#' @description Samples from arbitrary univariate or bivariate target distributions using rejection sampling.
 #'
-#' @param proposal A function representing the probability density function (PDF) of the proposal distribution.
-#' @param target A function representing the probability density function (PDF) of the target distribution.
-#' @param M A constant such that target_pdf(x) <= M * proposal_pdf(x) for all x.
-#' @param n The number of samples to generate.
+#' @param target Target density function (univariate: `function(x)`, bivariate: `function(c(x,y))`)
+#' @param proposal Proposal density function matching `target`'s dimension
+#' @param proposal_gen Function generating proposal samples (`function(n)`)
+#' @param n_samples Number of samples to generate (default: 1)
+#' @param bounds Support bounds for target (length 2 vector for univariate, matrix with 2 columns for bivariate)
+#' @param M Optional bound for target/proposal ratio (will calculate if NULL)
+#' @param max_attempts Maximum sampling attempts before stopping (default: 10,000)
+#'
 #' @return A list containing:
-#'   - `samples`: A numeric vector of accepted samples.
-#'   - `theoretical_efficiency`: Theoretical efficiency (acceptance probability).
-#'   - `empirical_efficiency`: Empirical efficiency (based on actual samples).
-#' @examples
-#' # Define the proposal PDF (Uniform(-3, 3) PDF)
-#' proposal_pdf <- function(x) { ifelse(x >= -3 & x <= 3, 1/6, 0) }
-#'
-#' # Define the target PDF (Standard Normal PDF)
-#' target_pdf <- function(x) { dnorm(x, mean = 0, sd = 1) }
-#'
-#' # Compute constant M
-#' M <- max(dnorm(seq(-3, 3, length.out = 100)) / proposal_pdf(seq(-3, 3, length.out = 100)))
-#'
-#' # Perform Accept-Reject Sampling with efficiency calculation
-#' result <- accept_reject(proposal_pdf, target_pdf,
-#'                                   M, 1000)
-#'
-#' # Plot the comparison between target PDF and sampled PDF
-#' plot_sampling(result$samples, target_pdf)
-#'
-#' # Print the theoretical efficiency (acceptance probability)
-#' result$theoretical_efficiency
-#'
-#' # Print the empirical efficiency (based on actual samples)
-#' result$empirical_efficiency
+#' \itemize{
+#'   \item `samples`: Matrix of accepted samples (n_samples rows × dimension columns)
+#'   \item `acceptance_rate`: Empirical acceptance probability
+#'   \item `M`: Used bound value
+#' }
 #'
 #' @export
-accept_reject <- function(proposal, target, M = NULL, n = 100000, lower = NULL, upper = NULL) {
-  samples <- matrix(NA, nrow = n, ncol = length(lower))  # To store the accepted samples (in matrix form for multi-dimensional)
-  count <- 0  # Counter for accepted samples
-  total_proposed <- 0  # Counter for proposed samples
+#'
+#' @examples
+#' # Univariate example: Sampling from Gamma(3,2) using Normal(1.5,1) proposal
+#' target <- function(x) dgamma(x, shape=3, rate=2)
+#' proposal <- function(x) dnorm(x, mean=1.5, sd=1)
+#' proposal_gen <- function(n) rnorm(n, mean=1.5, sd=1)
+#'
+#' result <- rejection_sample(
+#'   target = target,
+#'   proposal = proposal,
+#'   proposal_gen = proposal_gen,
+#'   bounds = c(0, Inf),
+#'   n_samples = 1000
+#' )
+#' hist(result$samples, breaks=30, main="Gamma(3,2) Samples")
+#'
+#' # Bivariate example: Sampling from custom 2D density
+#' target2d <- function(x) exp(-x[1]^2/2 - x[2]^2/2 - x[1]*x[2]/2)
+#' proposal2d <- function(x) dnorm(x[1]) * dnorm(x[2])
+#' proposal_gen2d <- function(n) matrix(rnorm(2*n), ncol=2)
+#'
+#' result2d <- rejection_sample(
+#'   target = target2d,
+#'   proposal = proposal2d,
+#'   proposal_gen = proposal_gen2d,
+#'   bounds = matrix(c(-3,3,-3,3), ncol=2),
+#'   n_samples = 500
+#' )
+#' plot(result2d$samples, pch=20, main="Bivariate Samples")
+rejection_sample <- function(target, proposal, proposal_gen,
+                             n_samples = 1, bounds = c(-Inf, Inf),
+                             M = NULL, max_attempts = 10000) {
 
-  # Ratio function to calculate the target-to-proposal ratio for vectors
-  ratio_function <- function(x) {
-    target(x) / proposal(x)
+  # Validate bounds
+  if (is.matrix(bounds)) {
+    if (ncol(bounds) != 2) stop("Bivariate bounds need 2 columns")
+    dim <- 2
+  } else {
+    if (length(bounds) != 2) stop("Univariate bounds need length 2")
+    dim <- 1
+    bounds <- matrix(bounds, ncol=1)
   }
 
-  # If M is not provided, optimize to find the maximum of the ratio function
+  # Calculate M if not provided
   if (is.null(M)) {
-    if (is.null(lower) | is.null(upper)) {
-      stop("You must provide bounds for optimization if M is not supplied.")
+    ratio <- function(x) {
+      if (dim == 1) {
+        x <- x[1]
+        if (x < bounds[1,1] || x > bounds[1,2]) return(0)
+        target_val <- target(x)
+        proposal_val <- proposal(x)
+      } else {
+        if (x[1] < bounds[1,1] || x[1] > bounds[1,2] ||
+            x[2] < bounds[2,1] || x[2] > bounds[2,2]) return(0)
+        target_val <- target(x)
+        proposal_val <- proposal(x)
+      }
+      if (proposal_val <= 0) return(0)
+      target_val/proposal_val
     }
-    M <- optimise(ratio_function, lower = lower, upper = upper, maximum = TRUE, tol = 0.00001)$objective
+
+    # Optimize separately for each dimension if bivariate
+    if (dim == 1) {
+      M <- optimize(ratio, interval = bounds[,1], maximum = TRUE)$objective
+    } else {
+      M <- max(
+        optim(c(0,0), fn = ratio, control = list(fnscale=-1))$value,
+        optim(c(1,1), fn = ratio, control = list(fnscale=-1))$value,
+        optim(c(-1,1), fn = ratio, control = list(fnscale=-1))$value
+      )
+    }
+    if (M <= 0) stop("Failed to find valid M bound")
   }
 
-  while (count < n) {
-    x <- proposal(1)  # Draw a sample from the proposal distribution (this can be a vector)
-    u <- runif(1)  # Uniform(0,1) sample
-    total_proposed <- total_proposed + 1
+  # Sampling loop
+  samples <- matrix(nrow = n_samples, ncol = dim)
+  attempts <- 0
+  accepted <- 0
 
-    # Acceptance condition
-    if (u <= (target(x) / (M * proposal(x)))) {
-      count <- count + 1
-      samples[count, ] <- x  # Store the vector sample
+  while (accepted < n_samples && attempts < max_attempts) {
+    attempts <- attempts + 1
+
+    # Generate proposal
+    x <- proposal_gen(1)
+    if (dim == 1) x <- x[1]  # Ensure scalar for univariate case
+
+    # Check bounds
+    in_bounds <- if (dim == 1) {
+      x >= bounds[1,1] && x <= bounds[1,2]
+    } else {
+      all(x >= bounds[,1]) && all(x <= bounds[,2])
+    }
+
+    if (in_bounds) {
+      u <- runif(1)
+      target_val <- target(x)
+      proposal_val <- if (dim == 1) proposal(x) else proposal(x)
+
+      if (u <= target_val/(M * proposal_val)) {
+        accepted <- accepted + 1
+        samples[accepted,] <- x
+      }
     }
   }
 
-  # Theoretical efficiency: ratio of acceptance probabilities
-  theoretical_efficiency <- 1 / M
+  if (accepted < n_samples) {
+    warning(paste("Only", accepted, "samples accepted after", attempts, "attempts"))
+  }
 
-  # Empirical efficiency: ratio of accepted samples to proposed samples
-  empirical_efficiency <- n / total_proposed
-
-  return(list(samples = samples,
-              theoretical_efficiency = theoretical_efficiency,
-              empirical_efficiency = empirical_efficiency))
+  return(list(
+    samples = samples,
+    acceptance_rate = accepted/attempts,
+    M = M
+  ))
 }
-
 
 
 #------------------------------------
@@ -303,103 +359,66 @@ metropolis <- function(target, initial, proposal, n = 100000, hastings = FALSE){
 }
 
 #------------------------------------
-#' Gibbs Sampler for Multivariate Distributions with Thinning
+#' Flexible Gibbs Sampling with Optional Rejection Steps
 #'
-#' Implements a Gibbs sampling algorithm for an `n_dim`-dimensional random variable.
-#' Includes a thinning option to reduce autocorrelation, while ensuring `n` samples
-#' are retained after burn-in and thinning.
+#' @description General-purpose Gibbs sampler supporting both direct sampling and rejection sampling steps.
 #'
-#' @param n_dim Integer. The number of dimensions (variables) in the distribution.
-#' @param n_iter Integer. The total number of iterations to run the sampler.
-#' @param burn_in Integer. The number of initial samples to discard (burn-in period).
-#' @param thinning Integer. The thinning interval, specifying how frequently to keep a sample.
-#'   Default is 1, meaning no thinning.
-#' @param init Numeric vector of length `n_dim`. The starting values for the sampler.
-#' @param conditional_samplers List of functions. Each function corresponds to a conditional
-#'   sampler for one of the dimensions, taking the current state as input and returning a new value.
+#' @param conditional_samplers List of conditional samplers (functions or specifications)
+#' @param init Initial parameter vector
+#' @param n_iter Total iterations (default: 1000)
+#' @param burn_in Burn-in period (default: 100)
+#' @param thinning Thinning interval (default: 1)
 #'
-#' @return A matrix of size `(n)` containing the sampled values after the burn-in period and thinning.
-#' @examples
-#' set.seed(123)
-#'
-#' # Define conditional samplers for a bivariate normal distribution
-#' mu1 <- 0; mu2 <- 0
-#' sigma1 <- 1; sigma2 <- 1
-#' rho <- 0.8
-#'
-#' cond_sampler_x <- function(state) {
-#'   y <- state[2]
-#'   rnorm(1, mean = mu1 + rho * (y - mu2) * sigma1 / sigma2, sd = sqrt((1 - rho^2) * sigma1^2))
-#' }
-#'
-#' cond_sampler_y <- function(state) {
-#'   x <- state[1]
-#'   rnorm(1, mean = mu2 + rho * (x - mu1) * sigma2 / sigma1, sd = sqrt((1 - rho^2) * sigma2^2))
-#' }
-#'
-#' # Run Gibbs sampler with thinning every 30 iterations and retain 500 samples
-#' samples <- gibbs_sampler(n_dim = 2, n_iter = 10000, burn_in = 1000, thinning = 30,
-#'                          init = c(0, 0), conditional_samplers = list(cond_sampler_x, cond_sampler_y))
-#'
-#' # Plot the samples
-#' plot(samples, col = rgb(0, 0, 1, 0.2), pch = 16, main = "Gibbs Sampler Samples with Thinning")
+#' @return Matrix where rows are samples and columns are parameters
 #'
 #' @export
-gibbs_sampler <- function(n_dim, n_iter, burn_in, thinning = 1, init, conditional_samplers, proposal_functions, target_functions) {
-  if (burn_in >= n_iter) {
-    stop("Burn-in period must be smaller than the total number of iterations.")
+#'
+#' @examples
+#' # Bivariate normal example
+#' sampler <- list(
+#'   function(y) rnorm(1, 0.5*y, sqrt(0.75)),
+#'   function(x) rnorm(1, 0.5*x, sqrt(0.75))
+#' )
+#' samples <- gibbs_sampler(sampler, init = c(0,0))
+gibbs_sampler <- function(conditional_samplers, init, n_iter = 1000, burn_in = 100, thinning = 1) {
+
+  # Input validation
+  if (length(conditional_samplers) != length(init)) {
+    stop("Length of conditional_samplers must match init vector length")
   }
 
-  if (thinning < 1) {
-    stop("Thinning interval must be at least 1.")
-  }
+  n_params <- length(conditional_samplers)
+  samples <- matrix(NA, nrow = n_iter, ncol = n_params)
+  samples[1,] <- init
 
-  # Initialize the samples matrix
-  samples <- matrix(NA, nrow = n_iter, ncol = n_dim)
-  samples[1, ] <- init
-
-  # Perform Gibbs sampling with accept-reject in each conditional sampling step
   for (i in 2:n_iter) {
-    current_sample <- samples[i - 1, ]
-    for (j in 1:n_dim) {
-      # Use the accept_reject function for each conditional sampler
-      proposal <- proposal_functions[[j]]  # Proposal distribution for the j-th dimension
-      target <- target_functions[[j]]  # Target function (conditional distribution for the j-th dimension)
+    current <- samples[i-1,]
 
-      # Use the acceptance-rejection method for the j-th dimension
-      result <- accept_reject(proposal = proposal,
-                              target = target,
-                              n = 1,  # We need only one sample at a time
-                              lower = -Inf,  # Set your lower and upper bounds based on the problem
-                              upper = Inf)
+    for (j in 1:n_params) {
+      cond_sampler <- conditional_samplers[[j]]
 
-      # Set the j-th dimension of the current sample
-      current_sample[j] <- result$samples[1]
-    }
-    samples[i, ] <- current_sample
-  }
-
-  # Discard burn-in samples
-  samples <- samples[(burn_in + 1):n_iter, , drop = FALSE]
-
-  # Calculate the number of samples to retain after thinning
-  n_samples_needed <- floor((n_iter - burn_in) / thinning)
-
-  # If thinning results in fewer than desired samples, adjust the thinning interval
-  if (n_samples_needed > 0) {
-    # Get the indices after thinning
-    retained_indices <- seq(1, nrow(samples), by = thinning)
-
-    # Ensure we do not exceed the number of needed samples
-    if (length(retained_indices) > n_samples_needed) {
-      retained_indices <- retained_indices[1:n_samples_needed]
+      if (is.function(cond_sampler)) {
+        # Direct sampling case
+        current[j] <- cond_sampler(current[-j])
+      } else if (is.list(cond_sampler) && cond_sampler$method == "rejection") {
+        # Rejection sampling case
+        current[j] <- rejection_sampler(
+          target = function(x) cond_sampler$target(x, current[-j]),
+          proposal = cond_sampler$proposal,
+          proposal_gen = cond_sampler$proposal_gen,
+          bounds = cond_sampler$bounds
+        )$samples[1]
+      } else {
+        stop("Invalid sampler specification for parameter ", j)
+      }
     }
 
-    # Subset the samples based on the retained indices
-    samples <- samples[retained_indices, , drop = FALSE]
+    samples[i,] <- current
   }
 
-  return(samples)
+  # Apply burn-in and thinning
+  keep <- seq(burn_in + 1, n_iter, by = thinning)
+  return(samples[keep,])
 }
 
 
