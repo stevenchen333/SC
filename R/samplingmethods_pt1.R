@@ -206,10 +206,12 @@ accept_reject <- function(proposal, target, M = NULL, n=100000) {
   samples <- numeric(n)
   count <- 0  # Counter for accepted samples
   total_proposed <- 0  # Counter for proposed samples
-  ratio_function = target/proposal
+  ratio_function <- function(x){
+    target(x)/proposal(x)
+  }
 
   if (is.null(M) == TRUE){
-    M = optimise(ratio_function, c(0,1), maximum = TRUE, tol = 0.00001)
+    M = optimise(ratio_function, lower = 0, upper =1, maximum = TRUE, tol = 0.00001)
   }
 
   while (count < n) {
@@ -217,7 +219,7 @@ accept_reject <- function(proposal, target, M = NULL, n=100000) {
     u <- runif(1)  # Uniform(0,1) sample
     total_proposed <- total_proposed + 1
 
-    if (u <= ratio_function*(1/M)) {
+    if (u <= ratio_function(x)*(1/M)) {
       count <- count + 1
       samples[count] <- x
     }
