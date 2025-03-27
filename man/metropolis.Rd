@@ -2,7 +2,7 @@
 % Please edit documentation in R/samplingmethods_pt1.R
 \name{metropolis}
 \alias{metropolis}
-\title{Metropolis Algorithm (Supports Optional Metropolis-Hastings)}
+\title{Metropolis Algorithm}
 \usage{
 metropolis(target, initial, proposal, n = 1e+05, hastings = FALSE)
 }
@@ -14,8 +14,6 @@ metropolis(target, initial, proposal, n = 1e+05, hastings = FALSE)
 \item{proposal}{A function that proposes a new sample given the current sample.}
 
 \item{n}{Integer, number of iterations for the algorithm. Default is 100000.}
-
-\item{hastings}{Logical, whether to use Metropolis-Hastings. Currently, only Metropolis is implemented. Default is FALSE.}
 }
 \value{
 A list containing the sampled values.
