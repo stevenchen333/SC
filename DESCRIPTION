@@ -9,7 +9,8 @@ Imports:
         stats,
         Matrix,
         MASS,
-        ggplot2
+        ggplot2,
+        coda
 Suggests: dplyr, ggplot2
 License: MIT
 Encoding: UTF-8

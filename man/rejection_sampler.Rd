@@ -2,7 +2,7 @@
 % Please edit documentation in R/samplingmethods_pt1.R
 \name{rejection_sampler}
 \alias{rejection_sampler}
-\title{General-Purpose Rejection Sampling}
+\title{Rejection Sampler for Univariate and Multivariate Distributions}
 \usage{
 rejection_sampler(
   target,
@@ -10,70 +10,85 @@ rejection_sampler(
   proposal_density,
   n,
   M = NULL,
-  lower = -10,
-  upper = 10
+  lower = rep(-10, length(upper)),
+  upper = rep(10, length(lower))
 )
 }
 \arguments{
-\item{target}{Target density function (univariate: \verb{function(x)})}
+\item{target}{Target density function (must return scalar for input vector)}
 
-\item{proposal_sampler}{Function generating proposal samples (\verb{function(n)})}
+\item{proposal_sampler}{Function that generates proposal samples}
 
-\item{proposal_density}{Proposal density function (\verb{function(x)})}
+\item{proposal_density}{Proposal density function (must match sampler)}
 
-\item{n}{Number of samples to generate (default: 1)}
+\item{n}{Number of desired samples}
 
-\item{M}{Optional bound for target/proposal ratio (will calculate if NULL)}
+\item{M}{Optional upper bound for target/(M*proposal). If NULL, computes automatically.}
 
-\item{lower}{Lower bound for optimization interval (default: -10)}
+\item{lower}{Lower bound(s) for optimization when finding M}
 
-\item{upper}{Upper bound for optimization interval (default: 10)}
+\item{upper}{Upper bound(s) for optimization when finding M}
 }
 \value{
-A list containing:
+List with three components:
 \itemize{
-\item \code{samples}: Vector of accepted samples
-\item \code{theoretical_efficiency}: Theoretical acceptance probability (1/M)
-\item \code{empirical_efficiency}: Empirical acceptance rate (n_samples/total_attempts)
-\item \code{M}: Used bound value
+\item sampled - Matrix of samples (n rows × d columns)
+\item theoretical_efficiency - 1/M (optimal acceptance rate)
+\item empirical_efficiency - Actual acceptance rate (n/total_tries)
 }
 }
 \description{
-Samples from arbitrary univariate target distributions using rejection sampling.
+Samples from target probability densities using rejection sampling.
+Works for both univariate and multivariate distributions.
 }
 \examples{
-# Example 1: Sampling from Gamma(3,2) using Normal(1.5,1) proposal
-target <- function(x) dgamma(x, shape = 3, rate = 2)
-proposal_density <- function(x) dnorm(x, mean = 1.5, sd = 1)
-proposal_sampler <- function(n) rnorm(n, mean = 1.5, sd = 1)
+# =============================================
+# Example 1: Univariate - Beta(2,5) Distribution
+# =============================================
 
-result <- rejection_sampler(
-  target = target,
-  proposal_sampler = proposal_sampler,
-  proposal_density = proposal_density,
-  n = 1000,
-  lower = 0,
-  upper = 10
-)
+# Define components for Beta(2,5) sampling
+target_beta <- function(x) {
+  ifelse(x >= 0 & x <= 1, dbeta(x, 2, 5), 0)
+}
 
-# View results
-hist(result$samples, breaks = 30, main = "Gamma(3,2) Samples")
-cat("Theoretical efficiency:", result$theoretical_efficiency, "\n")
-cat("Empirical efficiency:", result$empirical_efficiency, "\n")
-cat("Used M value:", result$M, "\n")
-
-# Example 2: Sampling from Beta(2,5) using Uniform(0,1) proposal
-target <- function(x) dbeta(x, 2, 5)
-proposal_density <- function(x) dunif(x, 0, 1)
-proposal_sampler <- function(n) runif(n, 0, 1)
-
-result <- rejection_sampler(
-  target = target,
-  proposal_sampler = proposal_sampler,
-  proposal_density = proposal_density,
+set.seed(123)
+beta_result <- rejection_sampler(
+  target = target_beta,
+  proposal_sampler = function(n) runif(n, 0, 1),
+  proposal_density = function(x) dunif(x, 0, 1),
   n = 1000,
   lower = 0,
   upper = 1
 )
+
+# Plot results
+hist(beta_result$sampled, freq = FALSE, col = "lightblue",
+     main = "Beta(2,5) Samples via Rejection Sampling")
+curve(dbeta(x, 2, 5), add = TRUE, col = "red", lwd = 2)
+
+# =============================================
+# Example 2: Multivariate - Bivariate Normal
+# =============================================
+
+# Define components for standard bivariate normal
+target_normal <- function(x) {
+  exp(-0.5 * sum(x^2)) / (2 * pi)
+}
+
+set.seed(456)
+mvnormal_result <- rejection_sampler(
+  target = target_normal,
+  proposal_sampler = function(n) matrix(runif(n*2, -5, 5), ncol = 2),
+  proposal_density = function(x) prod(dunif(x, -5, 5)),
+  n = 1000,
+  lower = c(-5, -5),
+  upper = c(5, 5)
+)
+
+# Plot results
+plot(mvnormal_result$sampled, pch = 20, col = rgb(0,0,1,0.3),
+     main = "Bivariate Normal Samples",
+     xlab = "X1", ylab = "X2")
+points(0, 0, pch = "X", col = "red", cex = 2)
 
 }

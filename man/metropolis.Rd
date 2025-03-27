@@ -2,41 +2,54 @@
 % Please edit documentation in R/samplingmethods_pt1.R
 \name{metropolis}
 \alias{metropolis}
-\title{Metropolis Algorithm}
+\title{Metropolis Algorithm for Multivariate Distributions}
 \usage{
-metropolis(target, initial, proposal, n = 1e+05, hastings = FALSE)
+metropolis(
+  target,
+  proposal_sampler,
+  init = NULL,
+  n_iter,
+  burn_in = 0,
+  thinning = 1
+)
 }
 \arguments{
-\item{target}{A function representing the target distribution (unnormalized density).}
+\item{target}{Target density function (must accept and return numeric)}
 
-\item{initial}{A function that generates the initial sample.}
+\item{proposal_sampler}{Function that generates symmetric proposals (must return same dimension as init)}
 
-\item{proposal}{A function that proposes a new sample given the current sample.}
+\item{init}{Initial values (defaults to vector of 0s)}
 
-\item{n}{Integer, number of iterations for the algorithm. Default is 100000.}
+\item{n_iter}{Total number of iterations}
+
+\item{burn_in}{Number of initial samples to discard (default: 0)}
+
+\item{thinning}{Keep only every k-th sample (default: 1)}
 }
 \value{
-A list containing the sampled values.
+Matrix of samples (n rows × d columns)
 }
 \description{
-This function implements the Metropolis algorithm for sampling from a given target distribution.
-Currently, Metropolis-Hastings is not implemented, but the function structure allows future extension.
+Samples from a target probability density using the Metropolis algorithm
+(special case of Metropolis-Hastings with symmetric proposals).
 }
 \examples{
-# Define target distribution (unnormalized density)
-target <- function(x) { dnorm(x, mean = 0, sd = 1) }
+# Bivariate normal target
+target <- function(x) exp(-0.5 * sum(x^2)) / (2*pi)
 
-# Define proposal function (Normal random walk)
-proposal <- function(x) { rnorm(1, mean = x, sd = 1) }
+# Symmetric normal proposal (sd = 0.5 for both dimensions)
+proposal_sampler <- function(n, current) {
+  matrix(rnorm(n*2, mean = 0, sd = 0.5), ncol = 2)
+}
 
-# Define initial value function
-initial <- function() { 0 }
+samples <- metropolis(
+  target = target,
+  proposal_sampler = proposal_sampler,
+  init = c(0, 0),
+  n_iter = 5000,
+  burn_in = 1000,
+  thinning = 2
+)
 
-# Run Metropolis algorithm
-samples <- metropolis(target, initial, proposal, n = 10000, hastings = FALSE)
-
-# Plot the histogram of samples
-hist(unlist(samples), probability = TRUE, main = "Metropolis Samples",
-     xlab = "x", col = "lightblue", border = "black")
-
+plot(samples, main = "Bivariate Normal Samples", pch = 20)
 }
