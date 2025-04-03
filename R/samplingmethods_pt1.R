@@ -284,8 +284,8 @@ metropolis <- function(target, proposal_sampler, init = NULL, n_iter, burn_in = 
   # Apply burn-in and thinning
   if (burn_in > 0) samples <- samples[-(1:burn_in), ]
   if (thinning > 1) {
-    keep <- seq(1, nrow(samples), by = thinning)
-    samples <- samples[keep, ]
+    keep <- seq(1, length(samples), by = thinning)
+    samples <- samples[keep ]
   }
 
   # Calculate and print acceptance rate
