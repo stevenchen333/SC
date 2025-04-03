@@ -399,3 +399,85 @@ gibbs<- function(conditional_samplers, n , init = NULL, burn_in = 0, thinning = 
   return(sampled)
 
 }
+
+#------------------------------------
+
+#' Plot 2D Target PDF and Sampled Data
+#'
+#' Creates a visualization comparing a 2D target probability density function (PDF)
+#' with sampled data points using ggplot2. The target PDF is shown as contour lines
+#' and the sampled data as points.
+#'
+#' @param target_pdf A function that takes a 2-column matrix of (x,y) coordinates
+#'   and returns the PDF values at those points.
+#' @param sampled_data A matrix or data.frame with 2 columns containing the
+#'   sampled (x,y) points.
+#' @param xlim Numeric vector of length 2 specifying the x-axis limits (min, max).
+#' @param ylim Numeric vector of length 2 specifying the y-axis limits (min, max).
+#' @param n_grid Integer specifying the number of grid points in each dimension
+#'   for evaluating the target PDF (default = 100).
+#' @param contour_bins Integer specifying the number of contour levels to show
+#'   (default = 15).
+#' @param point_alpha Numeric (0-1) specifying transparency of sampled points
+#'   (default = 0.5).
+#' @param point_size Numeric specifying size of sampled points (default = 1).
+#'
+#' @return A ggplot object showing the target PDF as contours and sampled data as points.
+#'
+#' @examples
+#' # Example with bivariate normal distribution
+#' target_pdf <- function(x) mvtnorm::dmvnorm(x, mean = c(0,0), sigma = diag(2))
+#' sampled_data <- mvtnorm::rmvnorm(1000, mean = c(0,0), sigma = diag(2))
+#' plot_pdf_samples(target_pdf, sampled_data, xlim = c(-3,3), ylim = c(-3,3))
+#'
+#' @import ggplot2
+#' @importFrom reshape2 melt
+#' @export
+plot_2d_samples <- function(target_pdf, sampled_data, xlim, ylim,
+                             n_grid = 100, contour_bins = 15,
+                             point_alpha = 0.5, point_size = 1) {
+
+  # Create grid for evaluating target PDF
+  x_seq <- seq(xlim[1], xlim[2], length.out = n_grid)
+  y_seq <- seq(ylim[1], ylim[2], length.out = n_grid)
+  grid <- as.matrix(expand.grid(x = x_seq, y = y_seq))
+
+  # Evaluate PDF on grid
+  pdf_values <- target_pdf(grid)
+  pdf_matrix <- matrix(pdf_values, nrow = n_grid, ncol = n_grid)
+
+  # Convert to data frame for ggplot
+  pdf_df <- reshape2::melt(pdf_matrix)
+  names(pdf_df) <- c("xid", "yid", "density")
+  pdf_df$x <- x_seq[pdf_df$xid]
+  pdf_df$y <- y_seq[pdf_df$yid]
+
+  # Convert sampled data to data frame if needed
+  if (!is.data.frame(sampled_data)) {
+    sampled_data <- as.data.frame(sampled_data)
+  }
+  colnames(sampled_data) <- c("x", "y")
+
+  # Create plot
+  ggplot2::ggplot() +
+    ggplot2::geom_contour(
+      data = pdf_df,
+      ggplot2::aes(x = x, y = y, z = density),
+      bins = contour_bins,
+      color = "darkblue"
+    ) +
+    ggplot2::geom_point(
+      data = sampled_data,
+      ggplot2::aes(x = x, y = y),
+      alpha = point_alpha,
+      size = point_size,
+      color = "red"
+    ) +
+    ggplot2::labs(
+      title = "Target PDF and Sampled Points",
+      subtitle = "Contours show target PDF, points show sampled data",
+      x = "X",
+      y = "Y"
+    ) +
+    ggplot2::theme_minimal()
+}
