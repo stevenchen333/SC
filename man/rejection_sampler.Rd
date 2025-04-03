@@ -4,15 +4,7 @@
 \alias{rejection_sampler}
 \title{Rejection Sampler for Univariate and Multivariate Distributions}
 \usage{
-rejection_sampler(
-  target,
-  proposal_sampler,
-  proposal_density,
-  n,
-  M = NULL,
-  lower = rep(-10, length(upper)),
-  upper = rep(10, length(lower))
-)
+rejection_sampler(target, proposal_sampler, proposal_density, n, M = NULL)
 }
 \arguments{
 \item{target}{Target density function (must return scalar for input vector)}

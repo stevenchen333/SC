@@ -132,44 +132,56 @@ box_muller <- function(n = 100000) {
 #' points(0, 0, pch = "X", col = "red", cex = 2)
 #'
 #' @export
-rejection_sampler <- function(target, proposal_sampler, proposal_density, n, M = NULL,
-                              lower = rep(-10, length(upper)), upper = rep(10, length(lower))) {
-
+rejection_sampler <- function(target, proposal_sampler, proposal_density, n, M = NULL) {
   # Get dimension from proposal sampler
   test_sample <- proposal_sampler(1)
-  d <- length(test_sample)
+  d <- length(test_sample)  # Determine dimension
 
-  # Initialize storage
+  # Set lower and upper bounds AFTER determining d
+  lower <- rep(-100, d)
+  upper <- rep(100, d)
+
+  accepted <- 0
   sampled <- matrix(NA, nrow = n, ncol = d)
   tries <- 0
   optimize_not <- is.null(M)
 
   # Function to find maximum ratio
   ratio_function <- function(x) {
-    target(x)/proposal_density(x)
+    target_val <- target(x)
+    proposal_val <- proposal_density(x)
+    if (proposal_val <= 0 || !is.finite(target_val) || !is.finite(proposal_val)) {
+      return(0)  # Fallback for invalid cases
+    }
+    target_val / proposal_val
   }
+
 
   # Find M if not provided
   if (optimize_not) {
-    # For multivariate case, we need to optimize over all dimensions
-    M <- optim(
+    opt_result <- optim(
       par = rep(0, d),
       fn = function(x) -ratio_function(x),  # Minimize negative ratio
       lower = lower,
       upper = upper,
       method = "L-BFGS-B"
-    )$value
-    M <- -M  # Convert back to maximum
+    )
+
+    if (opt_result$convergence != 0) {
+      stop("Optimization failed: ", opt_result$message)
+    }
+
+    M <- -opt_result$value  # Convert back to maximum
   }
 
   # Sampling loop
-  while(accepted < n) {
+  while (accepted < n) {
     x_sample <- proposal_sampler(1)  # Get proposal (should be a vector)
     u <- runif(1)
     tries <- tries + 1
 
     # Calculate acceptance probability
-    accept_prob <- target(x_sample)/(M * proposal_density(x_sample))
+    accept_prob <- target(x_sample) / (M * proposal_density(x_sample))
 
     if (u <= accept_prob) {
       accepted <- accepted + 1
@@ -178,8 +190,8 @@ rejection_sampler <- function(target, proposal_sampler, proposal_density, n, M =
   }
 
   # Calculate efficiencies
-  empirical_efficiency <- n/tries
-  theoretical_efficiency <- 1/M
+  empirical_efficiency <- n / tries
+  theoretical_efficiency <- 1 / M
 
   return(list(
     sampled = sampled,
@@ -187,7 +199,6 @@ rejection_sampler <- function(target, proposal_sampler, proposal_density, n, M =
     empirical_efficiency = empirical_efficiency
   ))
 }
-
 
 
 #------------------------------------
