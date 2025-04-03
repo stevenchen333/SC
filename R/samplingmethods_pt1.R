@@ -402,82 +402,113 @@ gibbs<- function(conditional_samplers, n , init = NULL, burn_in = 0, thinning = 
 
 #------------------------------------
 
-#' Plot 2D Target PDF and Sampled Data
+#' Visualize 2D Target PDF and Sampled Data
 #'
-#' Creates a visualization comparing a 2D target probability density function (PDF)
-#' with sampled data points using ggplot2. The target PDF is shown as contour lines
-#' and the sampled data as points.
+#' Creates a contour plot of a 2D target probability density function (PDF)
+#' overlaid with a scatter plot of sampled data points.
 #'
-#' @param target_pdf A function that takes a 2-column matrix of (x,y) coordinates
-#'   and returns the PDF values at those points.
-#' @param sampled_data A matrix or data.frame with 2 columns containing the
-#'   sampled (x,y) points.
-#' @param xlim Numeric vector of length 2 specifying the x-axis limits (min, max).
-#' @param ylim Numeric vector of length 2 specifying the y-axis limits (min, max).
-#' @param n_grid Integer specifying the number of grid points in each dimension
-#'   for evaluating the target PDF (default = 100).
-#' @param contour_bins Integer specifying the number of contour levels to show
-#'   (default = 15).
-#' @param point_alpha Numeric (0-1) specifying transparency of sampled points
-#'   (default = 0.5).
-#' @param point_size Numeric specifying size of sampled points (default = 1).
+#' @param target_pdf A function that takes `x` and `y` as inputs and returns the PDF value at `(x,y)`.
+#' @param sampled_data A `data.frame` or `matrix` with 2 columns (x, y) of sampled points.
+#' @param xlim Numeric vector of length 2 (`c(min, max)`) for the x-axis range.
+#' @param ylim Numeric vector of length 2 (`c(min, max)`) for the y-axis range.
+#' @param n_grid Number of grid points along each axis for evaluating the PDF (default: `100`).
+#' @param contour_bins Number of contour levels (default: `15`).
+#' @param point_alpha Transparency of sampled points (0 = fully transparent, 1 = opaque, default: `0.5`).
+#' @param point_size Size of sampled points (default: `1`).
+#' @param fill_contours If `TRUE`, fills contours with a gradient (default: `FALSE`).
+#' @param show_points If `FALSE`, hides the sampled points (default: `TRUE`).
 #'
-#' @return A ggplot object showing the target PDF as contours and sampled data as points.
+#' @return A `ggplot2` plot object.
 #'
 #' @examples
-#' # Example with bivariate normal distribution
-#' target_pdf <- function(x) mvtnorm::dmvnorm(x, mean = c(0,0), sigma = diag(2))
-#' sampled_data <- mvtnorm::rmvnorm(1000, mean = c(0,0), sigma = diag(2))
-#' plot_pdf_samples(target_pdf, sampled_data, xlim = c(-3,3), ylim = c(-3,3))
+#' # Example 1: Bivariate normal
+#' target_normal <- function(x, y) {
+#'   exp(-0.5 * (x^2 + y^2)) / (2 * pi)
+#' }
+#' sampled_data <- MASS::mvrnorm(1000, mu = c(0, 0), Sigma = diag(2))
+#' plot_2d_pdf(target_normal, sampled_data, xlim = c(-3, 3), ylim = c(-3, 3))
+#'
+#' # Example 2: Custom PDF (like yours)
+#' target_custom <- function(x, y) {
+#'   ifelse(x > -1 & y > 0, y * exp(-y * (x + 1)), 0)
+#' }
+#' sampled_data <- data.frame(x = rexp(1000) - 1, y = rexp(1000))  # Not true samples!
+#' plot_2d_pdf(target_custom, sampled_data, xlim = c(-1, 5), ylim = c(0, 5))
 #'
 #' @import ggplot2
 #' @importFrom reshape2 melt
 #' @export
-plot_2d_samples <- function(target_pdf, sampled_data, xlim, ylim,
-                             n_grid = 100, contour_bins = 15,
-                             point_alpha = 0.5, point_size = 1) {
-
-  # Create grid for evaluating target PDF
+plot_2d_pdf <- function(
+    target_pdf,
+    sampled_data,
+    xlim,
+    ylim,
+    n_grid = 100,
+    contour_bins = 15,
+    point_alpha = 0.5,
+    point_size = 1,
+    fill_contours = TRUE,
+    show_points = TRUE
+) {
+  # Create grid
   x_seq <- seq(xlim[1], xlim[2], length.out = n_grid)
   y_seq <- seq(ylim[1], ylim[2], length.out = n_grid)
-  grid <- as.matrix(expand.grid(x = x_seq, y = y_seq))
+  grid <- expand.grid(x = x_seq, y = y_seq)
 
-  # Evaluate PDF on grid
-  pdf_values <- target_pdf(grid)
-  pdf_matrix <- matrix(pdf_values, nrow = n_grid, ncol = n_grid)
+  # Evaluate PDF on grid (vectorized)
+  grid$density <- target_pdf(grid$x, grid$y)
 
-  # Convert to data frame for ggplot
-  pdf_df <- reshape2::melt(pdf_matrix)
-  names(pdf_df) <- c("xid", "yid", "density")
-  pdf_df$x <- x_seq[pdf_df$xid]
-  pdf_df$y <- y_seq[pdf_df$yid]
+  # Remove NA/Inf values
+  grid <- grid[is.finite(grid$density) & grid$density > 0, ]
 
-  # Convert sampled data to data frame if needed
+  # Convert sampled data to data.frame
   if (!is.data.frame(sampled_data)) {
     sampled_data <- as.data.frame(sampled_data)
   }
   colnames(sampled_data) <- c("x", "y")
 
-  # Create plot
-  ggplot2::ggplot() +
-    ggplot2::geom_contour(
-      data = pdf_df,
-      ggplot2::aes(x = x, y = y, z = density),
-      bins = contour_bins,
-      color = "darkblue"
-    ) +
-    ggplot2::geom_point(
-      data = sampled_data,
-      ggplot2::aes(x = x, y = y),
-      alpha = point_alpha,
-      size = point_size,
-      color = "red"
-    ) +
+  # Base plot
+  gg <- ggplot2::ggplot() +
     ggplot2::labs(
-      title = "Target PDF and Sampled Points",
-      subtitle = "Contours show target PDF, points show sampled data",
-      x = "X",
-      y = "Y"
+      title = "2D Target PDF with Sampled Data",
+      x = "x",
+      y = "y"
     ) +
+    ggplot2::coord_cartesian(xlim = xlim, ylim = ylim) +
     ggplot2::theme_minimal()
+
+  # Add filled contours if requested
+  if (fill_contours) {
+    gg <- gg +
+      ggplot2::geom_raster(
+        data = grid,
+        aes(x = x, y = y, fill = density),
+        alpha = 0.7
+      ) +
+      ggplot2::scale_fill_viridis_c(name = "Density")
+  }
+
+  # Add contour lines
+  gg <- gg +
+    ggplot2::geom_contour(
+      data = grid,
+      aes(x = x, y = y, z = density),
+      bins = contour_bins,
+      color = "darkblue",
+      linewidth = 0.5
+    )
+
+  # Add sampled points if requested
+  if (show_points) {
+    gg <- gg +
+      ggplot2::geom_point(
+        data = sampled_data,
+        aes(x = x, y = y),
+        alpha = point_alpha,
+        size = point_size,
+        color = "red"
+      )
+  }
+
+  return(gg)
 }
