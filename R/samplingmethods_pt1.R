@@ -236,7 +236,6 @@ rejection_sampler <- function(target, proposal_sampler, proposal_density, n, M =
 #' plot(samples, main = "Bivariate Normal Samples", pch = 20)
 #' @export
 metropolis <- function(target, proposal_sampler, init = NULL, n_iter, burn_in = 0, thinning = 1) {
-
   # Input validation
   if (n_iter <= burn_in) stop("n_iter must be greater than burn_in")
 
@@ -245,7 +244,7 @@ metropolis <- function(target, proposal_sampler, init = NULL, n_iter, burn_in = 
     d <- length(init)
   } else {
     test_sample <- proposal_sampler(1, current = NULL)
-    d <- length(test_sample)
+    d <- ncol(test_sample)
     init <- numeric(d)
   }
 
@@ -256,15 +255,15 @@ metropolis <- function(target, proposal_sampler, init = NULL, n_iter, burn_in = 
 
   # Main MCMC loop
   for (i in 2:n_iter) {
-    current <- samples[i-1, ]
-    proposal <- current + proposal_sampler(1, current)  # Symmetric proposal
+    current <- samples[i - 1, ]
+    proposal <- current + as.vector(proposal_sampler(1, current))  # Symmetric proposal
 
-    # Calculate acceptance probability
+    # Evaluate target densities
     target_current <- target(current)
     target_proposal <- target(proposal)
 
-    # Handle possible invalid densities
-    if (target_current <= 0 || is.na(target_current)) {
+    # Acceptance probability
+    if (is.na(target_current) || target_current <= 0) {
       warning("Invalid current target density at iteration ", i)
       samples[i, ] <- current
       next
@@ -272,8 +271,7 @@ metropolis <- function(target, proposal_sampler, init = NULL, n_iter, burn_in = 
 
     prob_accept <- min(1, target_proposal / target_current)
 
-    # Accept/reject
-    if (runif(1) <= prob_accept) {
+    if (runif(1) < prob_accept) {
       samples[i, ] <- proposal
       accepted <- accepted + 1
     } else {
@@ -281,19 +279,20 @@ metropolis <- function(target, proposal_sampler, init = NULL, n_iter, burn_in = 
     }
   }
 
-  # Apply burn-in and thinning
-  if (burn_in > 0) samples <- samples[-(1:burn_in), ]
+  # Burn-in and thinning
+  samples <- samples[-(1:burn_in), , drop = FALSE]
   if (thinning > 1) {
-    keep <- seq(1, length(samples), by = thinning)
-    samples <- samples[keep ]
+    keep <- seq(1, nrow(samples), by = thinning)
+    samples <- samples[keep, , drop = FALSE]
   }
 
-  # Calculate and print acceptance rate
+  # Acceptance rate
   acceptance_rate <- accepted / (n_iter - 1)
   message("Acceptance rate: ", round(acceptance_rate * 100, 1), "%")
 
   return(samples)
 }
+
 
 #------------------------------------
 #' Gibbs Sampling MCMC Algorithm
