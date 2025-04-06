@@ -196,7 +196,8 @@ rejection_sampler <- function(target, proposal_sampler, proposal_density, n, M =
   return(list(
     sampled = sampled,
     theoretical_efficiency = theoretical_efficiency,
-    empirical_efficiency = empirical_efficiency
+    empirical_efficiency = empirical_efficiency,
+    M = M
   ))
 }
 
@@ -511,3 +512,104 @@ plot_2d_pdf <- function(
 
   return(gg)
 }
+
+
+#------------------------------------
+
+
+
+
+#------------------------------------
+#' Monte Carlo Expectation Calculation
+#'
+#' Computes the expectation of a function using Monte Carlo methods,
+#' with optional importance sampling.
+#'
+#' @param g The target function whose expectation is to be computed
+#' @param f The density function for importance sampling (required when IS = TRUE)
+#' @param h_density The density function of the importance distribution (required when IS = TRUE)
+#' @param h_sampling The sampling function of the importance distribution (required when IS = TRUE)
+#' @param n Number of samples to generate (default = 1000)
+#' @param IS Logical flag indicating whether to use importance sampling (default = FALSE)
+#' @param plot_similarity Logical flag indicating whether to plot similarity (not currently implemented)
+#'
+#' @return A list containing:
+#' \itemize{
+#'   \item y - The computed function values
+#'   \item Expectation - The estimated expectation
+#'   \item sd - The standard deviation of the estimate
+#' }
+#'
+#' @details When IS = FALSE (default), the function uses simple Monte Carlo with uniform sampling.
+#' When IS = TRUE, importance sampling is performed using the provided h_sampling and h_density functions,
+#' with weights computed as f(x)/h_density(x).
+#'
+#' @examples
+#' # Simple Monte Carlo
+#' mc_expect(function(x) x^2)
+#'
+#' # Importance sampling example
+#' mc_expect(
+#'   g = function(x) x^2,
+#'   f = function(x) dnorm(x),
+#'   h_density = function(x) dnorm(x, mean = 1),
+#'   h_sampling = function(n) rnorm(n, mean = 1),
+#'   IS = TRUE
+#' )
+#'
+#' @export
+mc_expect <- function(g, f=NULL, h_density = NULL, h_sampling=NULL, n = 1000, IS = FALSE, plot_similarity = F){
+  if (IS == TRUE & is.null(h_sampling) & is.null(f) & is.null(h_density)){
+    stop("Importance sampling requires h and f ")
+  }
+
+  if (IS == FALSE){
+    h_sampling = function(n){runif(n)}
+    h_density = function(x){dunif(x)}
+    w = function(x) {1}
+  }else{
+    w <- function(x) {
+      denom <- h_density(x)
+      denom[denom < 1e-10] <- NA  # or a small constant like 1e-10
+      f(x) / denom
+    }
+  }
+
+  x<- h_sampling(n)
+  y<-g(x)*w(x)
+
+  return (list("y" = y,
+               "Expectation" = mean(y),
+               "sd" = sd(y)))
+}
+
+#------------------------------------
+
+#' Delta Method for Ratio Estimation
+#'
+#' Computes the standard error of a ratio using the delta method.
+#'
+#' @param num Numeric vector of numerator values
+#' @param dem Numeric vector of denominator values
+#'
+#' @return The estimated standard error of the ratio
+#'
+#' @details This function implements the delta method to estimate the standard error
+#' of a ratio of two random variables. It assumes the ratio is of the form num/dem.
+#'
+#' @examples
+#' set.seed(123)
+#' numerator <- rnorm(100, mean = 5, sd = 1)
+#' denominator <- rnorm(100, mean = 2, sd = 0.5)
+#' delta.method(numerator, denominator)
+#'
+#' @export
+delta.method <- function(num, dem){
+  dat <- cbind(num,dem)
+  avg <- apply(dat,2,mean)
+  grad <- matrix(c(1/avg[2], -avg[1]/avg[2]^2),2,1)
+  sd = sqrt( (1/length(num)) *t(grad) %*% var(dat) %*% grad )
+  return(sd)
+}
+
+

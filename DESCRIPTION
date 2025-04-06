@@ -10,7 +10,8 @@ Imports:
         Matrix,
         MASS,
         ggplot2,
-        coda
+        coda,
+        cubature
 Suggests: dplyr, ggplot2
 License: MIT
 Encoding: UTF-8
