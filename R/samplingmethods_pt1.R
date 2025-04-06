@@ -704,3 +704,158 @@ Bootstrap<-function(data, n_samples = 10000, statistic = mean, ci_level = 0.95, 
 }
 
 
+
+
+
+#------------------------------------
+#' IEEE 754 Converter for Single-Precision (32-bit)
+#'
+#' This function converts a numeric value into its IEEE 754 single-precision 32-bit
+#' binary representation, breaking it down into its sign, exponent, and mantissa.
+#' It also handles special values such as **NaN**, **Infinity**, and **Zero**.
+#'
+#' @param number A numeric value to be converted into IEEE 754 format. It can be
+#'               any real number, including special values such as `NaN`, `Inf`, and `-Inf`.
+#' @param verbose A logical value (`TRUE` or `FALSE`). If `TRUE`, the function
+#'                will print detailed steps explaining how the sign, exponent,
+#'                and mantissa are computed. If `FALSE`, no explanation is provided.
+#'
+#' @return A list with three components:
+#'   - `sign`: The sign bit of the IEEE 754 representation (either "0" for positive or "1" for negative).
+#'   - `exponent`: The 8-bit biased exponent in binary (as a string).
+#'   - `mantissa`: The 23-bit mantissa in binary (as a string).
+#'
+#'   For special values like `NaN`, `Inf`, or `Zero`, the function returns their
+#'   corresponding IEEE 754 representations.
+#'
+#' @examples
+#' # Example 1: Converting a positive number
+#' ieee754_converter(6.25)
+#'
+#' # Example 2: Converting a negative number
+#' ieee754_converter(-6.25)
+#'
+#' # Example 3: Handling NaN
+#' ieee754_converter(NaN)
+#'
+#' # Example 4: Handling Infinity
+#' ieee754_converter(Inf)
+#'
+#' # Example 5: Handling Negative Infinity
+#' ieee754_converter(-Inf)
+#'
+#' @export
+ieee754_converter <- function(number, verbose = TRUE) {
+  if (!is.numeric(number)) stop("Input must be a numeric value.")
+
+  # Helper function to convert a number to binary
+  to_binary <- function(n, bits = 8) {
+    binary <- NULL
+    while (n > 0) {
+      binary <- c(n %% 2, binary)
+      n <- n %/% 2
+    }
+    # Ensure we have the correct number of bits by padding with leading zeros
+    paste0(rep(0, bits - length(binary)), collapse = "", binary)
+  }
+
+  # Handle special cases for NaN, Inf, and zero
+  if (is.nan(number)) {
+    # NaN (Not-a-Number) - quiet NaN
+    return(list(
+      sign = "0",
+      exponent = "11111111",
+      mantissa = "10000000000000000000000"
+    ))
+  }
+
+  if (is.infinite(number)) {
+    # Infinity (positive or negative)
+    sign_bit <- ifelse(number > 0, "0", "1")
+    return(list(
+      sign = sign_bit,
+      exponent = "11111111",
+      mantissa = "00000000000000000000000"
+    ))
+  }
+
+  if (number == 0) {
+    # Zero (positive or negative)
+    sign_bit <- ifelse(1/number > 0, "0", "1")
+    return(list(
+      sign = sign_bit,
+      exponent = "00000000",
+      mantissa = "00000000000000000000000"
+    ))
+  }
+
+  # Step 1: Sign Bit
+  sign_bit <- ifelse(number < 0, "1", "0")
+  abs_num <- abs(number)
+  if (verbose) cat("Sign bit =", sign_bit, "because the number is", ifelse(sign_bit == "1", "negative", "positive"), "\n")
+
+  # Step 2: Convert to binary (integer and fraction parts)
+  int_part <- floor(abs_num)
+  frac_part <- abs_num - int_part
+
+  int_bin <- if (int_part == 0) "0" else paste0(rev(intToBits(int_part)[1:32]), collapse = "")
+  int_bin <- sub("^0+", "", int_bin)
+
+  # Convert fractional part
+  get_fraction_binary <- function(frac, limit = 30) {
+    result <- ""
+    count <- 0
+    while (frac > 0 && count < limit) {
+      frac <- frac * 2
+      bit <- floor(frac)
+      result <- paste0(result, bit)
+      frac <- frac - bit
+      count <- count + 1
+    }
+    return(result)
+  }
+
+  frac_bin <- get_fraction_binary(frac_part)
+  if (verbose) {
+    cat("Integer binary:", int_bin, "\n")
+    cat("Fraction binary:", frac_bin, "\n")
+  }
+
+  # Step 3: Normalize
+  if (int_part > 0) {
+    shift <- nchar(int_bin) - 1
+    normalized <- paste0("1.", substr(paste0(int_bin, frac_bin), 2, 100))
+  } else {
+    first_one <- regexpr("1", frac_bin)
+    shift <- -first_one
+    normalized <- paste0("1.", substr(frac_bin, first_one + 1, 100))
+  }
+
+  exponent <- shift
+  if (verbose) {
+    cat("Normalized binary:", normalized, "\n")
+    cat("Exponent (unbiased):", exponent, "\n")
+  }
+
+  # Step 4: Biased exponent
+  bias <- 127
+  biased_exponent <- exponent + bias
+  exponent_bin <- to_binary(biased_exponent, bits = 8)
+  if (verbose) {
+    cat("Exponent (biased):", biased_exponent, "→", exponent_bin, "\n")
+  }
+
+  # Step 5: Mantissa
+  mantissa_bin <- gsub("\\.", "", normalized)
+  mantissa_bin <- substr(mantissa_bin, 2, 24)
+  mantissa_bin <- sprintf("%-023s", mantissa_bin)
+  mantissa_bin <- gsub(" ", "0", mantissa_bin)
+  if (verbose) cat("Mantissa:", mantissa_bin, "\n")
+
+  # Return as a named list
+  return(list(
+    sign = sign_bit,
+    exponent = exponent_bin,
+    mantissa = mantissa_bin
+  ))
+}
