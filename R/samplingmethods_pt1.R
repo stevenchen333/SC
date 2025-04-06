@@ -613,3 +613,94 @@ delta.method <- function(num, dem){
 }
 
 
+
+
+#------------------------------------
+
+#' Bootstrap Resampling for Estimating Statistics and Confidence Intervals
+#'
+#' Performs bootstrap resampling to estimate a statistic (e.g., mean, regression coefficients) and compute a confidence interval.
+#'
+#' @param data A numeric vector or a data frame. The data to be resampled.
+#' @param n_samples Integer. Number of bootstrap samples to generate (default is 10,000).
+#' @param statistic A function to apply to the resampled data (default is \code{mean}).
+#' @param ci_level Confidence level for the confidence interval (default is 0.95).
+#' @param ... Additional arguments passed to the \code{statistic} function.
+#'
+#' @details This function generates \code{n_samples} bootstrap replicates by sampling the input data with replacement.
+#' It computes the given statistic for each resample, estimates bias and standard error, and calculates a confidence interval
+#' using the percentile method.
+#'
+#' @return A list containing:
+#' \describe{
+#'   \item{original}{The original statistic computed from the input data.}
+#'   \item{bootstrap}{A matrix or vector of bootstrap replicate statistics.}
+#'   \item{bias}{The estimated bias of the bootstrap statistic.}
+#'   \item{se}{The standard error of the bootstrap statistic.}
+#'   \item{ci}{The confidence interval for the statistic based on bootstrap percentiles.}
+#' }
+#'
+#' @examples
+#' # Bootstrap estimate of the mean from a numeric vector
+#' set.seed(123)
+#' data <- rnorm(100)
+#' Bootstrap(data)
+#'
+#' # Bootstrap estimate of the median with 99% CI
+#' Bootstrap(data, statistic = median, ci_level = 0.99)
+#'
+#' # Bootstrap regression coefficients
+#' set.seed(123)
+#' n <- 100
+#' x <- rnorm(n)
+#' y <- 3 + 2 * x + rnorm(n)
+#' df <- data.frame(x = x, y = y)
+#'
+#' # Custom statistic: regression coefficients
+#' coef_fn <- function(data) {
+#'   coef(lm(y ~ x, data = data))
+#' }
+#'
+#' result <- Bootstrap(data = df, n_samples = 1000, statistic = coef_fn)
+#' result$original  # Original regression coefficients
+#' result$ci        # Confidence intervals for coefficients
+#'
+#' @export
+Bootstrap<-function(data, n_samples = 10000, statistic = mean, ci_level = 0.95, ...){
+  # Input validation
+  if (!is.function(statistic)) {
+    stop("statistic must be a function")
+  }
+  if (n_samples < 1) {
+    stop("Number of bootstrap replicates R must be positive")
+  }
+  orig_stat = statistic(data, ...)
+  boot_stats = numeric(n_samples)
+
+  for (i in 1:n_samples){
+    resample <- if (is.vector(data)) {
+      n<- length(data)
+      data[sample(n, replace = TRUE)]
+    }
+    else {
+      n<-nrow(data)
+      resample <- data[sample(n, replace = TRUE), ]
+    }
+    boot_stats[i] <- statistic(resample, ...)
+
+  }
+
+
+  alpha <- (1 - ci_level) / 2
+  ci_probs <- c(alpha, 1 - alpha)
+
+  list(
+    original = orig_stat,
+    bootstrap = boot_stats,
+    bias = mean(boot_stats) - orig_stat,
+    se = sd(boot_stats),
+    ci = quantile(boot_stats, probs = ci_probs)
+  )
+}
+
+
