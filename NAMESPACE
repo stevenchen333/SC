@@ -2,7 +2,10 @@
 
 export(Bootstrap)
 export(box_muller)
+export(convergece1)
+export(convergece2)
 export(delta.method)
+export(gelman_convergence)
 export(gibbs)
 export(ieee754_converter)
 export(inv_cdf)

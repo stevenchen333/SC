@@ -514,7 +514,6 @@ plot_2d_pdf <- function(
 }
 
 
-#------------------------------------
 
 
 
@@ -859,3 +858,158 @@ ieee754_converter <- function(number, verbose = TRUE) {
     mantissa = mantissa_bin
   ))
 }
+
+
+#------------------------------------
+
+#' Time Series Plots for MCMC Samples
+#'
+#' Creates time series plots (trace plots) for MCMC samples to visually assess convergence.
+#' For multivariate parameters, creates one plot per parameter in a vertical layout.
+#'
+#' @param samples A numeric vector or matrix containing MCMC samples. If a matrix,
+#'   each column is treated as a separate parameter.
+#'
+#' @return Invisibly returns NULL. The function is called for its side effect of
+#'   producing plots.
+#'
+#' @examples
+#' # For univariate samples
+#' samples1 <- rnorm(1000)
+#' convergece1(samples1)
+#'
+#' # For multivariate samples (3 parameters)
+#' samples2 <- matrix(rnorm(3000), ncol = 3)
+#' convergece1(samples2)
+#'
+#' @export
+convergece1 <- function(samples) {
+  if(is.vector(samples)) {
+    ts.plot(samples)
+  } else {
+    par(mfrow = c(ncol(samples), 1))
+    for (i in 1:ncol(samples)) {
+      ts.plot(samples[,i])
+    }
+  }
+  par(mfrow = c(1,1))
+}
+
+#------------------------------------
+#' Autocorrelation Plots for MCMC Samples
+#'
+#' Creates autocorrelation function (ACF) plots for MCMC samples to assess mixing.
+#' For multivariate parameters, creates one plot per parameter in a vertical layout.
+#'
+#' @param samples A numeric vector or matrix containing MCMC samples. If a matrix,
+#'   each column is treated as a separate parameter.
+#'
+#' @return Invisibly returns NULL. The function is called for its side effect of
+#'   producing plots.
+#'
+#' @examples
+#' # For univariate samples
+#' samples1 <- rnorm(1000)
+#' convergece2(samples1)
+#'
+#' # For multivariate samples (3 parameters)
+#' samples2 <- matrix(rnorm(3000), ncol = 3)
+#' convergece2(samples2)
+#'
+#' @export
+convergece2 <- function(samples) {
+  if(is.vector(samples)) {
+    acf(samples)
+  } else {
+    par(mfrow = c(ncol(samples), 1))
+    for (i in 1:ncol(samples)) {
+      acf(samples[,i])
+    }
+  }
+  par(mfrow = c(1,1))
+}
+
+#------------------------------------
+#' Run Multiple MCMC Chains and Assess Convergence
+#'
+#' Runs multiple chains of an MCMC sampler with different starting values and
+#' produces convergence diagnostics including Gelman-Rubin statistics and plots.
+#'
+#' @param sampler A function that performs MCMC sampling. Must accept initial values
+#'        as its first argument and return a matrix of samples.
+#' @param inits_list A list of initial value vectors (one for each chain)
+#' @param n_iter Number of iterations per chain
+#' @param burn_in Number of initial samples to discard (default: 1000)
+#' @param thinning Keep only every k-th sample (default: 30)
+#' @param ... Additional arguments passed to the sampler function
+#' @return A list containing:
+#' \itemize{
+#'   \item{samples: List of thinned samples from each chain}
+#'   \item{gelman_diag: Results from gelman.diag()}
+#'   \item{gelman_plot: The Gelman-Rubin plot}
+#' }
+#'
+#' @examples
+#' # Example using the metropolis() function from earlier
+#' target <- function(x) exp(-0.5 * sum(x^2)) / (2*pi)
+#' proposal_sampler <- function(n, current) {
+#'   matrix(rnorm(n*2, mean = 0, sd = 0.5), ncol = 2)
+#' }
+#'
+#' results <- run_convergence_diagnostics(
+#'   sampler = metropolis,
+#'   inits_list = list(c(0,0), c(2,2), c(-1,1)),
+#'   n_iter = 10000,
+#'   target = target,
+#'   proposal_sampler = proposal_sampler
+#' )
+#'
+#' # View results
+#' print(results$gelman_diag)
+#' plot(results$gelman_plot)
+#' @export
+gelman_convergence <- function(sampler, inits_list, burn_in = 1000, thinning = 30,return_samples = FALSE ,...) {
+  # Check if coda package is available
+  if (!requireNamespace("coda", quietly = TRUE)) {
+    stop("The 'coda' package is required. Please install it first.")
+  }
+
+  # Run each chain
+  chains <- lapply(inits_list, function(init) {
+    samples <- sampler(init,...)
+
+    # Apply burn-in and thinning
+    if (burn_in > 0) {
+      samples <- samples[-(1:burn_in), , drop = FALSE]
+    }
+    if (thinning > 1) {
+      keep <- seq(1, nrow(samples), by = thinning)
+      samples <- samples[keep, , drop = FALSE]
+    }
+
+    coda::mcmc(samples)
+  })
+
+  # Convert to mcmc.list
+  chains <- coda::mcmc.list(chains)
+
+  # Calculate diagnostics
+  gelman_diag <- coda::gelman.diag(chains)
+  gelman_plot <- coda::gelman.plot(chains)
+
+  # Return results
+  if (return_samples == TRUE){
+    return(list(
+      samples = chains,
+      gelman_diag = gelman_diag,
+      gelman_plot = gelman_plot
+    ))}else{return(list(
+      gelman_diag = gelman_diag,
+      gelman_plot = gelman_plot
+    ))}
+
+}
+
+# install.packages("devtools");require(devtools)
+# devtools::install_github("stevenchen333/SC")
+# SC::inv_cdf(inv = function(x){1})
