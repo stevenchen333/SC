@@ -1010,6 +1010,4 @@ gelman_convergence <- function(sampler, inits_list, burn_in = 1000, thinning = 3
 
 }
 
-# install.packages("devtools");require(devtools)
-# devtools::install_github("stevenchen333/SC")
-# SC::inv_cdf(inv = function(x){1})
+
