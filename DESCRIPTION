@@ -12,7 +12,7 @@ Imports:
         ggplot2,
         coda,
         cubature
-Suggests: dplyr, ggplot2
+Suggests: dplyr
 License: MIT
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
