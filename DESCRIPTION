@@ -12,7 +12,8 @@ Imports:
         ggplot2,
         coda,
         cubature,
-        reshape2
+        reshape2,
+        pracma
 Suggests: dplyr
 License: MIT
 Encoding: UTF-8
